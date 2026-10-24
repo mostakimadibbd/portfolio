@@ -1,0 +1,335 @@
+<!DOCTYPE html>
+<html lang="en">
+<head>
+  <meta charset="utf-8">
+  <meta name="viewport" content="width=device-width, initial-scale=1">
+  <title>Mostakim Adib — Résumé</title>
+  <style>
+    * { box-sizing: border-box; margin: 0; }
+    @page { margin: 2cm; size: A4; }
+    body {
+      font-family: -apple-system, BlinkMacSystemFont, "Segoe UI", Roboto, "Helvetica Neue", Arial, sans-serif;
+      font-size: 10pt;
+      line-height: 1.55;
+      color: #1a1a2e;
+      background: #fff;
+      padding: 0;
+    }
+    .page { max-width: 210mm; margin: 0 auto; padding: 0; }
+    .header {
+      border-bottom: 2px solid #4f46e5;
+      padding-bottom: 12px;
+      margin-bottom: 16px;
+    }
+    .name { font-size: 26pt; font-weight: 700; letter-spacing: -0.03em; color: #0b1020; }
+    .title { font-size: 12pt; color: #4f46e5; font-weight: 600; margin-top: 4px; text-transform: uppercase; letter-spacing: 0.08em; }
+    .contact { display: flex; flex-wrap: wrap; gap: 16px; margin-top: 10px; font-size: 9pt; color: #4a4a6a; }
+    .contact a { color: inherit; text-decoration: none; }
+    .contact a:hover { text-decoration: underline; }
+    .contact span { display: flex; align-items: center; gap: 4px; }
+    .section { margin-top: 20px; }
+    .section-title {
+      font-size: 10.5pt; font-weight: 700; text-transform: uppercase; letter-spacing: 0.1em;
+      color: #4f46e5; border-bottom: 1px solid #e2e8f2; padding-bottom: 4px; margin-bottom: 10px;
+    }
+    .summary { font-size: 10pt; color: #3d4759; max-width: 100%; }
+    .role {
+      margin-top: 12px;
+      page-break-inside: avoid;
+    }
+    .role-head { display: flex; justify-content: space-between; align-items: baseline; flex-wrap: wrap; gap: 8px; }
+    .role-title { font-size: 11pt; font-weight: 700; color: #0c1322; }
+    .role-company { font-weight: 600; color: #4f46e5; }
+    .role-meta { font-size: 9pt; color: #64708a; }
+    .role-summary { margin-top: 4px; color: #3d4759; font-size: 9.5pt; }
+    .achievements { margin-top: 6px; padding-left: 18px; }
+    .achievements li { margin-bottom: 3px; font-size: 9.5pt; color: #3d4759; }
+    .stack { margin-top: 6px; font-size: 8.5pt; color: #64708a; }
+    .stack strong { color: #3d4759; }
+    .skills-grid { display: grid; grid-template-columns: repeat(2, 1fr); gap: 10px; }
+    .skill-group { page-break-inside: avoid; }
+    .skill-group-title { font-weight: 700; font-size: 9.5pt; color: #0c1322; margin-bottom: 4px; }
+    .skill-list { display: flex; flex-wrap: wrap; gap: 6px; }
+    .skill-tag {
+      background: #eef2f8; border: 1px solid #e2e8f2; border-radius: 999px;
+      padding: 2px 8px; font-size: 8pt; color: #3d4759; font-family: ui-monospace, SFMono-Regular, Menlo, monospace;
+    }
+    .projects-list { display: grid; gap: 8px; }
+    .project-item { page-break-inside: avoid; }
+    .project-title { font-weight: 700; font-size: 10pt; color: #0c1322; }
+    .project-meta { font-size: 8.5pt; color: #64708a; margin-top: 2px; }
+    .project-desc { margin-top: 3px; font-size: 9pt; color: #3d4759; }
+    .project-tags { margin-top: 4px; display: flex; flex-wrap: wrap; gap: 4px; }
+    .project-tag {
+      background: #f5f7fb; border: 1px solid #e2e8f2; border-radius: 4px;
+      padding: 1px 6px; font-size: 7.5pt; color: #4a4a6a; font-family: ui-monospace, SFMono-Regular, Menlo, monospace;
+    }
+    .education-item { margin-top: 10px; page-break-inside: avoid; }
+    .edu-degree { font-weight: 700; font-size: 10pt; color: #0c1322; }
+    .edu-school { font-weight: 600; color: #4f46e5; font-size: 9.5pt; }
+    .edu-meta { font-size: 8.5pt; color: #64708a; }
+    .cert-list { display: grid; gap: 6px; }
+    .cert-item { font-size: 9pt; color: #3d4759; }
+    .cert-title { font-weight: 600; color: #0c1322; }
+    .cert-issuer { color: #64708a; font-size: 8.5pt; }
+    @media print {
+      .no-print { display: none; }
+      body { -webkit-print-color-adjust: exact; print-color-adjust: exact; }
+    }
+  </style>
+</head>
+<body>
+  <div class="page">
+    <!-- Header -->
+    <header class="header">
+      <div class="name">Mostakim Adib</div>
+      <div class="title">AI & ML Engineer · Full-Stack Software Engineer</div>
+      <div class="contact">
+        <span><a href="mailto:hello@mostakimadib.dev">hello@mostakimadib.dev</a></span>
+        <span><a href="https://github.com/mostakimadib">GitHub</a></span>
+        <span><a href="https://linkedin.com/in/mostakimadib">LinkedIn</a></span>
+        <span><a href="https://x.com/mostakimadib">X</a></span>
+        <span>Dhaka, Bangladesh · UTC+6</span>
+        <span>+880 1XXX-XXXXXX</span>
+      </div>
+    </header>
+
+    <!-- Summary -->
+    <section class="section">
+      <div class="section-title">Professional Summary</div>
+      <p class="summary">
+        Machine-learning engineer with 5+ years of experience taking models from research to production — reliable training pipelines,
+        serving infrastructure, and the full-stack products that put them in front of real users. Proven track record shipping document intelligence,
+        recommendation systems, edge vision, and RAG applications at scale. Combines deep ML expertise (PyTorch, Transformers, MLOps) with
+        strong software engineering fundamentals (TypeScript, React, PostgreSQL, Kubernetes). Mentors engineers, designs systems for
+        observability and cost-efficiency, and writes code that colleagues can pick up on a Tuesday.
+      </p>
+    </section>
+
+    <!-- Experience -->
+    <section class="section">
+      <div class="section-title">Experience</div>
+
+      <article class="role">
+        <div class="role-head">
+          <div>
+            <div class="role-title">Senior Machine Learning Engineer</div>
+            <div class="role-company">Nimbus AI</div>
+          </div>
+          <div class="role-meta">2024-03 — Present · Remote / Dhaka</div>
+        </div>
+        <p class="role-summary">Lead the applied ML team behind a document-intelligence and assistant product suite serving enterprise customers.</p>
+        <ul class="achievements">
+          <li>Owned the modelling roadmap for 12 production models, improving extraction F1 from 0.88 to 0.94.</li>
+          <li>Designed the training and release pipeline now used by every ML team in the company.</li>
+          <li>Mentored four engineers, two of whom were promoted within twelve months.</li>
+          <li>Cut cloud inference spend 34% through quantisation, batching and autoscaling policy.</li>
+        </ul>
+        <div class="stack"><strong>Stack:</strong> PyTorch, Python, FastAPI, Kubernetes, AWS, PostgreSQL</div>
+      </article>
+
+      <article class="role">
+        <div class="role-head">
+          <div>
+            <div class="role-title">Machine Learning Engineer</div>
+            <div class="role-company">Corelytics</div>
+          </div>
+          <div class="role-meta">2022-06 — 2024-02 · Dhaka, Bangladesh</div>
+        </div>
+        <p class="role-summary">Built forecasting and recommendation systems for retail and logistics customers in a fast-moving product team.</p>
+        <ul class="achievements">
+          <li>Shipped a hierarchical forecasting toolkit that improved forecast WAPE by 21%.</li>
+          <li>Built a hybrid recommender that lifted click-through rate by 23% in live A/B tests.</li>
+          <li>Introduced model monitoring and alerting, reducing incident detection time to under 15 minutes.</li>
+          <li>Created the internal MLOps starter kit now used across three product teams.</li>
+        </ul>
+        <div class="stack"><strong>Stack:</strong> Python, XGBoost, Airflow, Redis, React, GCP</div>
+      </article>
+
+      <article class="role">
+        <div class="role-head">
+          <div>
+            <div class="role-title">Full-Stack Software Engineer</div>
+            <div class="role-company">Riverbed Systems</div>
+          </div>
+          <div class="role-meta">2021-01 — 2022-05 · Dhaka, Bangladesh</div>
+        </div>
+        <p class="role-summary">Delivered customer-facing web platforms and internal tooling for fintech and logistics clients.</p>
+        <ul class="achievements">
+          <li>Developed a multi-tenant accounting platform handling $40M+ in payout volume.</li>
+          <li>Introduced automated testing that raised coverage from 18% to 81%.</li>
+          <li>Rebuilt the operations dashboard with streaming updates, cutting support tickets by 27%.</li>
+          <li>Set up CI/CD pipelines that reduced release time from days to under an hour.</li>
+        </ul>
+        <div class="stack"><strong>Stack:</strong> TypeScript, Node.js, React, PostgreSQL, GraphQL, AWS</div>
+      </article>
+
+      <article class="role">
+        <div class="role-head">
+          <div>
+            <div class="role-title">Software Engineering Intern</div>
+            <div class="role-company">Bitfold Labs</div>
+          </div>
+          <div class="role-meta">2020-06 — 2020-12 · Dhaka, Bangladesh</div>
+        </div>
+        <p class="role-summary">Built internal automation tooling and prototypes for early-stage product teams.</p>
+        <ul class="achievements">
+          <li>Automated a manual reporting workflow, saving roughly 12 hours per week.</li>
+          <li>Prototyped an image search service used in a customer pilot.</li>
+          <li>Wrote onboarding documentation and developer setup guides for new engineers.</li>
+        </ul>
+        <div class="stack"><strong>Stack:</strong> Python, Node.js, Docker, MongoDB</div>
+      </article>
+    </section>
+
+    <!-- Skills -->
+    <section class="section">
+      <div class="section-title">Technical Skills</div>
+      <div class="skills-grid">
+        <div class="skill-group">
+          <div class="skill-group-title">Machine Learning & AI</div>
+          <div class="skill-list">
+            <span class="skill-tag">PyTorch</span>
+            <span class="skill-tag">TensorFlow / Keras</span>
+            <span class="skill-tag">scikit-learn</span>
+            <span class="skill-tag">Hugging Face</span>
+            <span class="skill-tag">NLP & RAG</span>
+            <span class="skill-tag">Computer Vision</span>
+            <span class="skill-tag">LLM Engineering</span>
+          </div>
+        </div>
+        <div class="skill-group">
+          <div class="skill-group-title">Data & MLOps</div>
+          <div class="skill-list">
+            <span class="skill-tag">pandas / Polars</span>
+            <span class="skill-tag">SQL</span>
+            <span class="skill-tag">Airflow / Prefect</span>
+            <span class="skill-tag">MLflow / W&B</span>
+            <span class="skill-tag">Docker</span>
+            <span class="skill-tag">Kubernetes</span>
+            <span class="skill-tag">Feature Engineering</span>
+          </div>
+        </div>
+        <div class="skill-group">
+          <div class="skill-group-title">Backend Engineering</div>
+          <div class="skill-list">
+            <span class="skill-tag">Python / FastAPI</span>
+            <span class="skill-tag">Node.js / Express</span>
+            <span class="skill-tag">PostgreSQL</span>
+            <span class="skill-tag">Redis</span>
+            <span class="skill-tag">Kafka / RabbitMQ</span>
+            <span class="skill-tag">GraphQL</span>
+            <span class="skill-tag">Go</span>
+          </div>
+        </div>
+        <div class="skill-group">
+          <div class="skill-group-title">Frontend Engineering</div>
+          <div class="skill-list">
+            <span class="skill-tag">TypeScript</span>
+            <span class="skill-tag">React / Next.js</span>
+            <span class="skill-tag">Vue 3</span>
+            <span class="skill-tag">Tailwind CSS</span>
+            <span class="skill-tag">Accessibility (WCAG)</span>
+            <span class="skill-tag">Web Performance</span>
+          </div>
+        </div>
+        <div class="skill-group">
+          <div class="skill-group-title">Tooling & Practices</div>
+          <div class="skill-list">
+            <span class="skill-tag">Git / GitHub Actions</span>
+            <span class="skill-tag">Pytest / Vitest</span>
+            <span class="skill-tag">Jest / Testing Library</span>
+            <span class="skill-tag">CI/CD Pipelines</span>
+            <span class="skill-tag">Observability</span>
+            <span class="skill-tag">System Design</span>
+          </div>
+        </div>
+      </div>
+    </section>
+
+    <!-- Selected Projects -->
+    <section class="section">
+      <div class="section-title">Selected Projects</div>
+      <div class="projects-list">
+        <article class="project-item">
+          <div class="project-title">Atlas — Document Intelligence Platform</div>
+          <div class="project-meta">2025 · Lead ML & Backend Engineer · Production</div>
+          <p class="project-desc">Production document-understanding platform ingesting millions of PDFs/invoices with layout-aware OCR, fine-tuned transformer classification, and rule-plus-ensemble extraction. Ships behind typed REST/gRPC API consumed by React operations console.</p>
+          <div class="project-tags">
+            <span class="project-tag">Machine Learning</span><span class="project-tag">NLP</span><span class="project-tag">Python</span><span class="project-tag">FastAPI</span><span class="project-tag">PyTorch</span><span class="project-tag">PostgreSQL</span><span class="project-tag">Docker</span><span class="project-tag">Kubernetes</span>
+          </div>
+        </article>
+        <article class="project-item">
+          <div class="project-title">Signal — Hybrid Recommender</div>
+          <div class="project-meta">2025 · Machine Learning Engineer · Production</div>
+          <p class="project-desc">Real-time recommendation engine blending collaborative filtering with two-tower embedding model for session-aware suggestions. Serves personalised feeds for a streaming product with ANN index over 40M item embeddings.</p>
+          <div class="project-tags">
+            <span class="project-tag">Machine Learning</span><span class="project-tag">Recommenders</span><span class="project-tag">PyTorch</span><span class="project-tag">Redis</span><span class="project-tag">Kafka</span><span class="project-tag">Node.js</span><span class="project-tag">React</span>
+          </div>
+        </article>
+        <article class="project-item">
+          <div class="project-title">Sight — Edge Vision Analytics</div>
+          <div class="project-meta">2024 · ML Engineer & Edge Systems Developer · Production</div>
+          <p class="project-desc">YOLO-based defect detection system with edge inference layer. Models exported to ONNX, quantised to INT8, served through TensorRT on Jetson-class devices with thermal-aware scheduling.</p>
+          <div class="project-tags">
+            <span class="project-tag">Computer Vision</span><span class="project-tag">PyTorch</span><span class="project-tag">ONNX</span><span class="project-tag">TensorRT</span><span class="project-tag">C++</span><span class="project-tag">Docker</span><span class="project-tag">IoT</span>
+          </div>
+        </article>
+        <article class="project-item">
+          <div class="project-title">Atlas Assistant — RAG Support Copilot</div>
+          <div class="project-meta">2024 · Founding Engineer · Production</div>
+          <p class="project-desc">Retrieval-augmented support assistant grounding every answer in verified product documentation with citations and evaluation harness. Hybrid BM25 + dense retrieval, cross-encoder reranker, tool layer for live account data.</p>
+          <div class="project-tags">
+            <span class="project-tag">NLP</span><span class="project-tag">LLM</span><span class="project-tag">RAG</span><span class="project-tag">Python</span><span class="project-tag">FastAPI</span><span class="project-tag">pgvector</span><span class="project-tag">React</span>
+          </div>
+        </article>
+        <article class="project-item">
+          <div class="project-title">Pulse — Model Observability Platform</div>
+          <div class="project-meta">2023 · Creator & Maintainer · Open Source (1.2k ⭐)</div>
+          <p class="project-desc">Lightweight observability service for ML systems capturing drift, latency and data-quality signals. Ingests inference logs, computes per-feature drift, tracks business KPIs against model outputs, alerts before degradation becomes an incident.</p>
+          <div class="project-tags">
+            <span class="project-tag">MLOps</span><span class="project-tag">Python</span><span class="project-tag">FastAPI</span><span class="project-tag">React</span><span class="project-tag">TimescaleDB</span><span class="project-tag">Docker</span>
+          </div>
+        </article>
+      </div>
+    </section>
+
+    <!-- Education & Certifications -->
+    <section class="section">
+      <div class="section-title">Education & Certifications</div>
+      <div class="education-item">
+        <div class="edu-degree">B.Sc. in Computer Science & Engineering</div>
+        <div class="edu-school">University of Dhaka</div>
+        <div class="edu-meta">2016 — 2020 · Dhaka, Bangladesh</div>
+        <div class="edu-meta">Focus: AI, ML, distributed systems. Final-year project on weakly-supervised image segmentation.</div>
+      </div>
+
+      <div class="section-title" style="margin-top: 16px;">Certifications</div>
+      <div class="cert-list">
+        <div class="cert-item"><span class="cert-title">Machine Learning Engineering for Production (MLOps)</span> — <span class="cert-issuer">DeepLearning.AI, 2024</span></div>
+        <div class="cert-item"><span class="cert-title">AWS Certified Machine Learning — Specialty</span> — <span class="cert-issuer">Amazon Web Services, 2023 (valid through 2026)</span></div>
+        <div class="cert-item"><span class="cert-title">Professional Data Engineering with Python</span> — <span class="cert-issuer">DataCamp, 2023</span></div>
+        <div class="cert-item"><span class="cert-title">Google Cloud Professional ML Engineer</span> — <span class="cert-issuer">Google Cloud, 2022 (valid through 2025)</span></div>
+        <div class="cert-item"><span class="cert-title">TensorFlow Developer Certification</span> — <span class="cert-issuer">Google, 2022</span></div>
+      </div>
+    </section>
+
+    <!-- Speaking -->
+    <section class="section">
+      <div class="section-title">Speaking Engagements</div>
+      <div class="cert-list">
+        <div class="cert-item"><span class="cert-title">From Notebook to Production: An Honest MLOps Playbook</span> — <span class="cert-issuer">AI Engineer Summit, 2025-06 (Conference talk)</span></div>
+        <div class="cert-item"><span class="cert-title">Grounding LLMs: Building a RAG System That Actually Holds Up</span> — <span class="cert-issuer">PyData Dhaka, 2024-11 (Technical talk)</span></div>
+        <div class="cert-item"><span class="cert-title">Shipping Models on the Edge</span> — <span class="cert-issuer">Robotics & Vision Meetup, 2023-09 (Meetup talk)</span></div>
+      </div>
+    </section>
+  </div>
+
+  <script>
+    // Auto-print when opened with ?print=1
+    if (new URLSearchParams(window.location.search).get('print') === '1') {
+      window.addEventListener('load', () => window.print());
+    }
+  </script>
+</body>
+</html>

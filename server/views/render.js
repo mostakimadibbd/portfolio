@@ -7,6 +7,7 @@ import experience from '../data/experience.js';
 import { certifications, education, speaking } from '../data/certifications.js';
 import { getAllTags } from '../services/projects.service.js';
 import { queryProjects } from '../services/projects.service.js';
+import config from '../config/index.js';
 
 const __dirname = path.dirname(fileURLToPath(import.meta.url));
 const templatePath = path.join(__dirname, 'home.template.html');
@@ -254,6 +255,94 @@ const renderSpeakingItems = () =>
     )
     .join('');
 
+/* ---------------------------------------------------------------- json-ld */
+
+const escapeJson = (value = '') =>
+  String(value).replace(/[\\]/g, '\\\\').replace(/["]/g, '\\"').replace(/[\n]/g, '\\n').replace(/[\r]/g, '\\r').replace(/[\t]/g, '\\t');
+
+const buildPersonSchema = () => {
+  const sameAs = profile.socials
+    .filter((s) => s.url.startsWith('http'))
+    .map((s) => s.url);
+
+  const knowsAbout = skills.flatMap((g) => g.items.map((i) => i.name));
+
+  const person = {
+    '@context': 'https://schema.org',
+    '@type': 'Person',
+    name: profile.name,
+    alternateName: profile.initials,
+    jobTitle: [profile.role, profile.secondaryRole],
+    description: profile.summary,
+    url: config.siteUrl,
+    image: `${config.siteUrl}/assets/og-image.svg`,
+    email: profile.email,
+    knowsAbout,
+    sameAs,
+    alumniOf: education.map((e) => ({
+      '@type': 'EducationalOrganization',
+      name: e.institution,
+    })),
+    worksFor: experience
+      .filter((e) => e.end === 'Present')
+      .map((e) => ({
+        '@type': 'Organization',
+        name: e.company,
+        description: e.summary,
+      })),
+  };
+
+  return JSON.stringify(person);
+};
+
+const buildWebSiteSchema = () => {
+  const website = {
+    '@context': 'https://schema.org',
+    '@type': 'WebSite',
+    name: `${profile.name} — Portfolio`,
+    url: config.siteUrl,
+    description: profile.summary,
+    publisher: {
+      '@type': 'Person',
+      name: profile.name,
+    },
+    potentialAction: {
+      '@type': 'SearchAction',
+      target: `${config.siteUrl}/#projects?q={search_term_string}`,
+      'query-input': 'required name=search_term_string',
+    },
+  };
+  return JSON.stringify(website);
+};
+
+const buildWebPageSchema = () => {
+  const webpage = {
+    '@context': 'https://schema.org',
+    '@type': 'WebPage',
+    '@id': `${config.siteUrl}/#webpage`,
+    name: `${profile.name} — ${profile.role} & ${profile.secondaryRole}`,
+    description: profile.summary,
+    url: config.siteUrl,
+    isPartOf: { '@id': `${config.siteUrl}/#website` },
+    about: {
+      '@type': 'Person',
+      name: profile.name,
+    },
+    mainEntity: {
+      '@type': 'Person',
+      name: profile.name,
+      jobTitle: profile.role,
+    },
+    breadcrumb: {
+      '@type': 'BreadcrumbList',
+      itemListElement: [
+        { '@type': 'ListItem', position: 1, name: 'Home', item: config.siteUrl },
+      ],
+    },
+  };
+  return JSON.stringify(webpage);
+};
+
 /* ----------------------------------------------------------------- render */
 
 export const renderHome = async () => {
@@ -288,6 +377,9 @@ export const renderHome = async () => {
     EDUCATION_ITEMS: renderEducationItems(),
     CERTIFICATION_ITEMS: renderCertificationItems(),
     SPEAKING_ITEMS: renderSpeakingItems(),
+    JSONLD_PERSON: buildPersonSchema(),
+    JSONLD_WEBSITE: buildWebSiteSchema(),
+    JSONLD_WEBPAGE: buildWebPageSchema(),
   };
 
   return Object.entries(replacements).reduce(
