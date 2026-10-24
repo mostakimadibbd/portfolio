@@ -470,6 +470,29 @@ const initMisc = () => {
   });
 };
 
+/* ------------------------------------------------------------------ service worker */
+
+const initServiceWorker = () => {
+  if (!('serviceWorker' in navigator)) return;
+  if (location.protocol !== 'https:' && location.hostname !== 'localhost' && location.hostname !== '127.0.0.1') return;
+
+  window.addEventListener('load', () => {
+    navigator.serviceWorker.register('/sw.js').then((registration) => {
+      registration.addEventListener('updatefound', () => {
+        const newWorker = registration.installing;
+        newWorker?.addEventListener('statechange', () => {
+          if (newWorker.state === 'installed' && navigator.serviceWorker.controller) {
+            // New version available - could show a toast here
+            console.log('New portfolio version available. Refresh to update.');
+          }
+        });
+      });
+    }).catch((err) => {
+      console.warn('Service worker registration failed:', err);
+    });
+  });
+};
+
 /* ------------------------------------------------------------------ boot */
 
 const boot = () => {
@@ -483,6 +506,7 @@ const boot = () => {
   initContactForm();
   initBackToTop();
   initMisc();
+  initServiceWorker();
   document.documentElement.classList.add('is-ready');
 };
 
