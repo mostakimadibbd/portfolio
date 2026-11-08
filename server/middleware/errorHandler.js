@@ -1,12 +1,25 @@
 import config from '../config/index.js';
 import logger from '../utils/logger.js';
 import { ApiError } from '../utils/ApiError.js';
+import { renderNotFound, renderServerError } from '../views/render.js';
 
 /**
  * 404 handler for unmatched routes.
  */
-export const notFoundHandler = (req, _res, next) => {
-  next(new ApiError(404, `Route ${req.method} ${req.originalUrl} was not found`, { code: 'NOT_FOUND' }));
+export const notFoundHandler = (req, res, next) => {
+  const isApi = req.originalUrl.startsWith(config.apiPrefix) || req.path.startsWith('/api');
+  if (isApi) {
+    next(new ApiError(404, `Route ${req.method} ${req.originalUrl} was not found`, { code: 'NOT_FOUND' }));
+    return;
+  }
+  renderNotFound()
+    .then((html) =>
+      res
+        .status(404)
+        .type('html')
+        .send(html.replaceAll('{{CSP_NONCE}}', res.locals.cspNonce ?? '')),
+    )
+    .catch(next);
 };
 
 /**
@@ -32,6 +45,22 @@ export const errorHandler = (error, req, res, _next) => {
     if (config.isProd) message = 'An unexpected error occurred. Please try again later.';
   } else {
     logger.warn('Request rejected', { path: req.originalUrl, code, message });
+  }
+
+  if (!isApi) {
+    const renderError = statusCode >= 500 ? renderServerError : renderNotFound;
+    renderError()
+      .then((html) =>
+        res
+          .status(statusCode)
+          .type('html')
+          .send(html.replaceAll('{{CSP_NONCE}}', res.locals.cspNonce ?? '')),
+      )
+      .catch((renderError) => {
+        logger.error('Could not render error page', { message: renderError.message });
+        if (!res.headersSent) res.status(statusCode).type('text').send('The page could not be served.');
+      });
+    return;
   }
 
   res.status(statusCode).json({

@@ -1,0 +1,88 @@
+<!doctype html>
+<html lang="en">
+<head>
+  <meta charset="utf-8">
+  <meta name="viewport" content="width=device-width, initial-scale=1, viewport-fit=cover">
+  <meta name="color-scheme" content="light dark">
+  <meta name="theme-color" content="#fbfaf7" id="theme-color">
+  <title>{{TITLE}}</title>
+  <meta name="description" content="{{DESCRIPTION}}">
+  <meta name="author" content="Mostakim Adib">
+  <link rel="canonical" href="{{CANONICAL}}">
+  <meta property="og:type" content="{{OG_TYPE}}">
+  <meta property="og:title" content="{{TITLE}}">
+  <meta property="og:description" content="{{DESCRIPTION}}">
+  <meta property="og:url" content="{{CANONICAL}}">
+  <meta property="og:image" content="{{OG_IMAGE}}">
+  <meta name="twitter:card" content="summary_large_image">
+  <meta name="twitter:title" content="{{TITLE}}">
+  <meta name="twitter:description" content="{{DESCRIPTION}}">
+  <meta name="twitter:image" content="{{OG_IMAGE}}">
+  <link rel="icon" href="/assets/favicon.svg" type="image/svg+xml">
+  <link rel="manifest" href="/assets/site.webmanifest">
+  <link rel="preload" href="/css/main.css" as="style">
+  <link rel="stylesheet" href="/css/main.css">
+  <script src="/js/theme-init.js"></script>
+  {{STRUCTURED_DATA}}
+</head>
+<body>
+  <a class="skip-link" href="#main">Skip to main content</a>
+  <header class="site-header" id="site-header">
+    <div class="container header-inner">
+      <a class="brand" href="/" aria-label="Mostakim Adib home">
+        <span class="brand-mark" aria-hidden="true">MA</span>
+        <span class="brand-text"><strong>Mostakim Adib</strong><small>Full-stack developer &amp; founder</small></span>
+      </a>
+      <nav class="site-nav" id="site-nav" aria-label="Primary">
+        <a href="/about">About</a>
+        <a href="/projects">Projects</a>
+        <a href="/uses">Uses</a>
+        <a href="/now">Now</a>
+        <a href="/writing">Writing</a>
+      </nav>
+      <div class="header-actions">
+        <button class="icon-btn" id="palette-open" type="button" aria-label="Open command menu" title="Command menu (Ctrl or Cmd + K)">⌘K</button>
+        <a class="btn btn-ghost btn-sm header-resume" href="/resume">Résumé</a>
+        <button class="nav-toggle" id="nav-toggle" type="button" aria-expanded="false" aria-controls="site-nav" aria-label="Open navigation menu"><span></span><span></span><span></span></button>
+      </div>
+    </div>
+  </header>
+
+  <main id="main">{{CONTENT}}</main>
+
+  <footer class="site-footer">
+    <div class="container footer-inner">
+      <a class="footer-brand" href="/"><span class="brand-mark" aria-hidden="true">MA</span><span><strong>Mostakim Adib</strong><small>Full-stack developer &amp; founder</small></span></a>
+      <nav class="footer-nav" aria-label="Footer"><a href="/projects">Projects</a><a href="/resume">Résumé</a><a href="/contact">Contact</a></nav>
+      <p class="footer-note">© {{YEAR}} Mostakim Adib · Bangladesh.</p>
+    </div>
+  </footer>
+
+  <button class="customise-trigger" id="customise-open" type="button" aria-haspopup="dialog" aria-controls="theme-panel">Customise</button>
+  <section class="theme-panel" id="theme-panel" role="dialog" aria-modal="true" aria-labelledby="theme-title" hidden>
+    <div class="theme-panel-head"><h2 id="theme-title">Make it yours</h2><button class="icon-btn" id="customise-close" type="button" aria-label="Close customiser">×</button></div>
+    <label class="theme-field">Mode
+      <select id="theme-mode"><option value="system">System</option><option value="light">Light</option><option value="dark">Dark</option></select>
+    </label>
+    <fieldset class="theme-field"><legend>Accent</legend><div class="accent-presets" id="accent-presets">{{ACCENT_PRESETS}}</div></fieldset>
+    <label class="theme-field">Custom accent
+      <input id="accent-custom" type="color" value="#d946ef">
+    </label>
+    <fieldset class="theme-field"><legend>Corner style</legend><div class="choice-row"><label><input type="radio" name="radius" value="sharp"> Sharp</label><label><input type="radio" name="radius" value="soft" checked> Soft</label><label><input type="radio" name="radius" value="round"> Round</label></div></fieldset>
+    <fieldset class="theme-field"><legend>Type</legend><div class="choice-row"><label><input type="radio" name="font" value="sans" checked> Sans</label><label><input type="radio" name="font" value="mono"> Mono-leaning</label></div></fieldset>
+    <fieldset class="theme-field"><legend>Motion</legend><div class="choice-row"><label><input type="radio" name="motion" value="full" checked> Full</label><label><input type="radio" name="motion" value="reduced"> Reduced</label></div></fieldset>
+    <div class="theme-panel-actions"><button class="btn btn-ghost btn-sm" id="theme-reset" type="button">Reset</button><button class="btn btn-ghost btn-sm" id="theme-share" type="button">Copy theme link</button></div>
+    <p class="theme-status" id="theme-status" role="status" aria-live="polite"></p>
+  </section>
+
+  <dialog class="command-palette" id="command-palette" aria-labelledby="palette-title">
+    <h2 class="sr-only" id="palette-title">Command menu</h2>
+    <label class="sr-only" for="palette-search">Search pages and actions</label>
+    <input id="palette-search" type="search" placeholder="Jump to a page or action…" autocomplete="off">
+    <ul id="palette-results"></ul>
+    <p class="palette-hint">↑ ↓ to navigate · Enter to select · Esc to close</p>
+  </dialog>
+
+  <script type="module" src="/js/main.js"></script>
+</body>
+</html>

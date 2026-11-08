@@ -17,6 +17,7 @@ export const contactSchema = z.object({
     .trim()
     .min(10, 'Message must be at least 10 characters')
     .max(4000, 'Message must be 4000 characters or fewer'),
+  formStartedAt: z.coerce.number().int().positive().optional(),
   // Honeypot — bots fill hidden fields, humans never see them. The route
   // absorbs a filled value silently instead of storing it.
   company: z.string().max(200).optional().default(''),

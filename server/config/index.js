@@ -15,6 +15,7 @@ const toInt = (value, fallback) => {
 };
 
 const env = process.env.NODE_ENV ?? 'development';
+const vercelUrl = process.env.VERCEL_URL ? `https://${process.env.VERCEL_URL}` : null;
 
 export const config = {
   env,
@@ -26,7 +27,7 @@ export const config = {
       Boolean(process.env.VERCEL || process.env.AWS_LAMBDA_FUNCTION_NAME || process.env.FUNCTIONS_WORKER_RUNTIME)),
   port: toInt(process.env.PORT, 3000),
   host: process.env.HOST ?? '0.0.0.0',
-  siteUrl: process.env.SITE_URL ?? 'http://localhost:3000',
+  siteUrl: (process.env.SITE_URL ?? vercelUrl ?? 'http://localhost:3000').replace(/\/$/, ''),
   apiPrefix: '/api/v1',
 
   security: {

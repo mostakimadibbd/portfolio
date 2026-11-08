@@ -1,479 +1,447 @@
 import { api, ApiError } from './api.js';
 
-/* --------------------------------------------------------------- utilities */
+const $ = (selector, root = document) => root.querySelector(selector);
+const $$ = (selector, root = document) => [...root.querySelectorAll(selector)];
+const storageKey = 'ma-portfolio-theme-v1';
+const defaults = { mode: 'system', accent: '#b45335', radius: 'soft', font: 'sans', motion: 'full' };
+const allowed = {
+  mode: ['system', 'light', 'dark'],
+  radius: ['sharp', 'soft', 'round'],
+  font: ['sans', 'mono'],
+  motion: ['full', 'reduced'],
+};
 
-const $ = (selector, scope = document) => scope.querySelector(selector);
-const $$ = (selector, scope = document) => [...scope.querySelectorAll(selector)];
+const readStoredTheme = () => {
+  try {
+    const stored = JSON.parse(localStorage.getItem(storageKey) || 'null');
+    return stored && typeof stored === 'object' ? stored : {};
+  } catch {
+    return {};
+  }
+};
 
-const prefersReducedMotion = () => window.matchMedia('(prefers-reduced-motion: reduce)').matches;
+const isHexColor = (value) => /^#[\da-f]{6}$/i.test(value);
 
-/* ------------------------------------------------------------------ theme */
+const colorChannels = (hex) => {
+  const value = hex.slice(1);
+  return [0, 2, 4].map((index) => Number.parseInt(value.slice(index, index + 2), 16) / 255);
+};
+
+const luminance = (hex) =>
+  colorChannels(hex)
+    .map((channel) => (channel <= 0.04045 ? channel / 12.92 : ((channel + 0.055) / 1.055) ** 2.4))
+    .reduce((sum, channel, index) => sum + channel * [0.2126, 0.7152, 0.0722][index], 0);
+
+const contrastRatio = (first, second) => {
+  const [lighter, darker] = [luminance(first), luminance(second)].sort((a, b) => b - a);
+  return (lighter + 0.05) / (darker + 0.05);
+};
+
+const toHex = (value) =>
+  `#${Math.round(value)
+    .toString(16)
+    .padStart(2, '0')}`;
+
+const accessibleAccent = (color, mode) => {
+  const background = mode === 'dark' ? '#111613' : '#fbfaf7';
+  if (contrastRatio(color, background) >= 4.5) return color;
+
+  const channels = colorChannels(color).map((channel) => channel * 255);
+  for (let step = 1; step <= 100; step += 1) {
+    const ratio = step / 100;
+    const candidate = channels.map((channel) =>
+      mode === 'dark' ? channel + (255 - channel) * ratio : channel * (1 - ratio),
+    );
+    const hex = `#${candidate.map(toHex).join('').replace(/#/g, '')}`;
+    if (contrastRatio(hex, background) >= 4.5) return hex;
+  }
+  return mode === 'dark' ? '#ffffff' : '#000000';
+};
+
+const applyTheme = (theme) => {
+  const root = document.documentElement;
+  const systemDark = window.matchMedia('(prefers-color-scheme: dark)').matches;
+  const mode = theme.mode === 'system' ? (systemDark ? 'dark' : 'light') : theme.mode;
+  root.dataset.theme = mode;
+  root.dataset.radius = theme.radius;
+  root.dataset.font = theme.font;
+  root.dataset.motion = theme.motion;
+
+  const accent = accessibleAccent(theme.accent, mode);
+  root.style.setProperty('--accent-custom', accent);
+  root.style.setProperty(
+    '--accent-custom-contrast',
+    contrastRatio(accent, '#111613') > contrastRatio(accent, '#ffffff') ? '#111613' : '#ffffff',
+  );
+  $('#theme-color')?.setAttribute('content', mode === 'dark' ? '#111613' : '#fbfaf7');
+};
+
+const parseThemeQuery = () => {
+  const params = new URLSearchParams(location.search);
+  if (!params.has('accent') && !params.has('mode') && !params.has('radius')) return null;
+  const theme = { ...defaults };
+  for (const key of Object.keys(allowed)) {
+    const value = params.get(key);
+    if (value && allowed[key].includes(value)) theme[key] = value;
+  }
+  const accent = params.get('accent');
+  if (accent && isHexColor(accent)) theme.accent = accent;
+  return theme;
+};
 
 const initTheme = () => {
-  const toggle = $('#theme-toggle');
-  if (!toggle) return;
-
-  const apply = (theme) => {
-    document.documentElement.setAttribute('data-theme', theme);
-    toggle.setAttribute('aria-pressed', String(theme === 'dark'));
-    toggle.setAttribute('aria-label', theme === 'dark' ? 'Switch to light theme' : 'Switch to dark theme');
-  };
-
-  let storedTheme = null;
-  try {
-    storedTheme = localStorage.getItem('ma-theme');
-  } catch {
-    /* storage unavailable — follow the system preference */
+  let theme = { ...defaults, ...readStoredTheme() };
+  const sharedTheme = parseThemeQuery();
+  if (sharedTheme) theme = sharedTheme;
+  if (!isHexColor(theme.accent)) theme.accent = defaults.accent;
+  for (const key of Object.keys(allowed)) {
+    if (!allowed[key].includes(theme[key])) theme[key] = defaults[key];
   }
-  const systemTheme = window.matchMedia('(prefers-color-scheme: dark)').matches ? 'dark' : 'light';
-  apply(storedTheme || systemTheme);
+  applyTheme(theme);
 
-  toggle.addEventListener('click', () => {
-    const next = document.documentElement.getAttribute('data-theme') === 'dark' ? 'light' : 'dark';
-    apply(next);
+  const panel = $('#theme-panel');
+  const openButton = $('#customise-open');
+  const closeButton = $('#customise-close');
+  const status = $('#theme-status');
+  const setStatus = (message) => {
+    if (status) status.textContent = message;
+  };
+  const save = () => {
+    applyTheme(theme);
     try {
-      localStorage.setItem('ma-theme', next);
+      localStorage.setItem(storageKey, JSON.stringify(theme));
+      setStatus('Theme saved on this device.');
     } catch {
-      /* storage unavailable — theme still applies for this session */
+      setStatus('Theme applied for this visit; browser storage is unavailable.');
+    }
+  };
+  const setRadio = (name, value) => {
+    const input = $(`input[name="${name}"][value="${value}"]`);
+    if (input) input.checked = true;
+  };
+  const syncControls = () => {
+    $('#theme-mode').value = theme.mode;
+    $('#accent-custom').value = theme.accent;
+    setRadio('radius', theme.radius);
+    setRadio('font', theme.font);
+    setRadio('motion', theme.motion);
+    $$('[data-accent]').forEach((button) => {
+      button.setAttribute('aria-pressed', String(button.dataset.accent.toLowerCase() === theme.accent.toLowerCase()));
+    });
+  };
+  syncControls();
+
+  const closePanel = () => {
+    if (!panel) return;
+    panel.hidden = true;
+    openButton?.focus();
+  };
+  openButton?.addEventListener('click', () => {
+    if (!panel) return;
+    panel.hidden = false;
+    $('#theme-mode')?.focus();
+  });
+  closeButton?.addEventListener('click', closePanel);
+  panel?.addEventListener('keydown', (event) => {
+    if (event.key === 'Escape') closePanel();
+    if (event.key !== 'Tab') return;
+    const controls = $$('button, input, select', panel).filter((control) => !control.disabled);
+    const first = controls[0];
+    const last = controls.at(-1);
+    if (event.shiftKey && document.activeElement === first) {
+      event.preventDefault();
+      last?.focus();
+    } else if (!event.shiftKey && document.activeElement === last) {
+      event.preventDefault();
+      first?.focus();
     }
   });
 
-  window
-    .matchMedia('(prefers-color-scheme: dark)')
-    .addEventListener('change', (event) => {
-      let stored = null;
-      try {
-        stored = localStorage.getItem('ma-theme');
-      } catch {
-        /* ignore */
-      }
-      if (!stored) apply(event.matches ? 'dark' : 'light');
-    });
+  $('#theme-mode')?.addEventListener('change', (event) => {
+    theme.mode = event.target.value;
+    save();
+  });
+  $('#accent-custom')?.addEventListener('input', (event) => {
+    theme.accent = event.target.value;
+    syncControls();
+    save();
+  });
+  $('#accent-presets')?.addEventListener('click', (event) => {
+    const button = event.target.closest('[data-accent]');
+    if (!button) return;
+    theme.accent = button.dataset.accent;
+    syncControls();
+    save();
+  });
+  for (const name of ['radius', 'font', 'motion']) {
+    $$(`input[name="${name}"]`).forEach((input) =>
+      input.addEventListener('change', () => {
+        theme[name] = input.value;
+        save();
+      }),
+    );
+  }
+  $('#theme-reset')?.addEventListener('click', () => {
+    theme = { ...defaults };
+    syncControls();
+    save();
+  });
+  $('#theme-share')?.addEventListener('click', async () => {
+    const url = new URL(location.href);
+    for (const key of [...allowed.mode, ...allowed.radius, ...allowed.font, ...allowed.motion]) {
+      url.searchParams.delete(key);
+    }
+    url.searchParams.set('mode', theme.mode);
+    url.searchParams.set('accent', theme.accent);
+    url.searchParams.set('radius', theme.radius);
+    url.searchParams.set('font', theme.font);
+    url.searchParams.set('motion', theme.motion);
+    try {
+      await navigator.clipboard.writeText(url.href);
+      setStatus('Theme link copied.');
+    } catch {
+      setStatus(url.href);
+    }
+  });
+  window.matchMedia('(prefers-color-scheme: dark)').addEventListener('change', () => {
+    if (theme.mode === 'system') applyTheme(theme);
+  });
+
+  return { closePanel };
 };
 
-/* -------------------------------------------------------------- navigation */
-
 const initNavigation = () => {
-  const header = $('#site-header');
   const toggle = $('#nav-toggle');
   const nav = $('#site-nav');
-  const progress = $('#scroll-progress');
-
-  const closeMenu = () => {
+  const close = () => {
     if (!nav || !toggle) return;
     nav.classList.remove('is-open');
     toggle.setAttribute('aria-expanded', 'false');
     toggle.setAttribute('aria-label', 'Open navigation menu');
   };
-
   toggle?.addEventListener('click', () => {
     const open = nav.classList.toggle('is-open');
     toggle.setAttribute('aria-expanded', String(open));
     toggle.setAttribute('aria-label', open ? 'Close navigation menu' : 'Open navigation menu');
   });
-
-  $$('#site-nav a').forEach((link) => link.addEventListener('click', closeMenu));
-
+  $$('#site-nav a').forEach((link) => link.addEventListener('click', close));
   document.addEventListener('keydown', (event) => {
-    if (event.key === 'Escape') closeMenu();
+    if (event.key === 'Escape') close();
   });
-
-  let scrollFrame = 0;
-  const onScroll = () => {
-    if (scrollFrame) return;
-    scrollFrame = requestAnimationFrame(() => {
-      scrollFrame = 0;
-      header?.classList.toggle('is-scrolled', window.scrollY > 12);
-
-      if (progress) {
-        const max = document.documentElement.scrollHeight - window.innerHeight;
-        progress.style.transform = `scaleX(${max > 0 ? window.scrollY / max : 0})`;
-      }
-    });
-  };
-
-  onScroll();
-  window.addEventListener('scroll', onScroll, { passive: true });
 };
-
-const initScrollSpy = () => {
-  const links = $$('[data-nav-link]');
-  if (!links.length) return;
-
-  const sections = links
-    .map((link) => document.getElementById(link.getAttribute('href')?.slice(1)))
-    .filter(Boolean);
-
-  if (!('IntersectionObserver' in window)) return;
-
-  const observer = new IntersectionObserver(
-    (entries) => {
-      for (const entry of entries) {
-        if (!entry.isIntersecting) continue;
-        const id = entry.target.id;
-        links.forEach((link) => {
-          const active = link.getAttribute('href') === `#${id}`;
-          link.classList.toggle('is-active', active);
-          if (active) link.setAttribute('aria-current', 'true');
-          else link.removeAttribute('aria-current');
-        });
-      }
-    },
-    { rootMargin: '-45% 0px -50% 0px', threshold: 0 },
-  );
-
-  sections.forEach((section) => observer.observe(section));
-};
-
-/* ---------------------------------------------------------------- reveals */
-
-const initReveals = () => {
-  const targets = $$('[data-reveal]');
-  if (!targets.length) return;
-
-  if (!('IntersectionObserver' in window) || prefersReducedMotion()) {
-    targets.forEach((element) => element.classList.add('is-visible'));
-    $$('.meter').forEach((meter) => meter.classList.add('is-visible'));
-    return;
-  }
-
-  const observer = new IntersectionObserver(
-    (entries) => {
-      for (const entry of entries) {
-        if (!entry.isIntersecting) continue;
-        entry.target.classList.add('is-visible');
-        observer.unobserve(entry.target);
-      }
-    },
-    { rootMargin: '0px 0px -8% 0px', threshold: 0.12 },
-  );
-
-  targets.forEach((target) => observer.observe(target));
-
-  const meterObserver = new IntersectionObserver(
-    (entries) => {
-      for (const entry of entries) {
-        if (!entry.isIntersecting) continue;
-        entry.target.classList.add('is-visible');
-        meterObserver.unobserve(entry.target);
-      }
-    },
-    { threshold: 0.3 },
-  );
-
-  $$('.meter').forEach((meter) => meterObserver.observe(meter));
-};
-
-/* --------------------------------------------------------------- counters */
-
-const initCounters = () => {
-  const counters = $$('[data-count-to]');
-  if (!counters.length) return;
-
-  const run = (element) => {
-    const target = Number(element.dataset.countTo) || 0;
-    if (prefersReducedMotion()) {
-      element.textContent = String(target);
-      return;
-    }
-
-    const duration = 1200;
-    const start = performance.now();
-
-    const tick = (now) => {
-      const elapsed = Math.min((now - start) / duration, 1);
-      const eased = 1 - Math.pow(1 - elapsed, 3);
-      element.textContent = String(Math.round(target * eased));
-      if (elapsed < 1) requestAnimationFrame(tick);
-    };
-
-    requestAnimationFrame(tick);
-  };
-
-  if (!('IntersectionObserver' in window)) {
-    counters.forEach(run);
-    return;
-  }
-
-  const observer = new IntersectionObserver(
-    (entries) => {
-      for (const entry of entries) {
-        if (!entry.isIntersecting) continue;
-        run(entry.target);
-        observer.unobserve(entry.target);
-      }
-    },
-    { threshold: 0.5 },
-  );
-
-  counters.forEach((counter) => observer.observe(counter));
-};
-
-/* --------------------------------------------------------------- projects */
 
 const initProjectFilters = () => {
   const grid = $('#project-grid');
   const filters = $('#project-filters');
+  if (!grid || !filters) return;
+  const cards = $$('.project-card', grid);
   const search = $('#project-search');
   const count = $('#result-count');
   const empty = $('#empty-state');
-  if (!grid || !filters) return;
-
-  const cards = $$('.project-card', grid);
   let activeFilter = 'all';
   let query = '';
-
   const apply = () => {
     const needle = query.trim().toLowerCase();
     let visible = 0;
-
     for (const card of cards) {
       const tags = (card.dataset.tags ?? '').split(' ');
       const matchesFilter = activeFilter === 'all' || tags.includes(activeFilter);
-      const matchesQuery = !needle || card.dataset.title.includes(needle) || card.textContent.toLowerCase().includes(needle);
-      const show = matchesFilter && matchesQuery;
-
-      card.hidden = !show;
-      if (show) visible += 1;
+      const matchesQuery = !needle || card.textContent.toLowerCase().includes(needle);
+      card.hidden = !(matchesFilter && matchesQuery);
+      if (!card.hidden) visible += 1;
     }
-
-    if (count) {
-      count.textContent =
-        visible === cards.length
-          ? `Showing all ${cards.length} projects`
-          : `Showing ${visible} of ${cards.length} projects`;
-    }
-
+    if (count) count.textContent = `Showing ${visible} of ${cards.length} projects`;
     if (empty) empty.hidden = visible !== 0;
   };
-
   filters.addEventListener('click', (event) => {
     const button = event.target.closest('[data-filter]');
     if (!button) return;
-
     activeFilter = button.dataset.filter;
     $$('[data-filter]', filters).forEach((chip) => {
       const active = chip === button;
       chip.classList.toggle('is-active', active);
       chip.setAttribute('aria-pressed', String(active));
     });
-
     apply();
   });
-
-  let debounce;
-  search?.addEventListener('input', (event) => {
-    window.clearTimeout(debounce);
-    debounce = window.setTimeout(() => {
-      query = event.target.value;
-      apply();
-    }, 140);
+  search?.addEventListener('input', () => {
+    query = search.value;
+    apply();
   });
-
   apply();
 };
-
-/* ------------------------------------------------------------------ toast */
-
-const toast = (message, variant = 'info') => {
-  const region = $('#toast-region');
-  if (!region) return;
-
-  const element = document.createElement('div');
-  element.className = `toast is-${variant}`;
-  element.setAttribute('role', variant === 'error' ? 'alert' : 'status');
-  element.textContent = message;
-  region.append(element);
-
-  window.setTimeout(() => {
-    element.classList.add('is-leaving');
-    element.addEventListener('animationend', () => element.remove(), { once: true });
-  }, 5200);
-};
-
-/* ----------------------------------------------------------- contact form */
 
 const initContactForm = () => {
   const form = $('#contact-form');
   if (!form) return;
-
   const submitButton = $('#cf-submit');
   const status = $('#form-status');
-  const counter = $('#char-count');
-  const messageField = $('#cf-message');
-
+  const fields = $$('input[name], textarea[name]', form).filter((field) => field.name !== 'company');
   const showError = (field, message) => {
-    const wrapper = field.closest('.field');
+    field.closest('.field')?.classList.add('has-error');
     const target = $(`[data-error-for="${field.name}"]`);
-    wrapper?.classList.add('has-error');
     if (target) target.textContent = message;
   };
-
-  const clearError = (field) => {
-    const wrapper = field.closest('.field');
+  const validate = (field) => {
+    field.closest('.field')?.classList.remove('has-error');
     const target = $(`[data-error-for="${field.name}"]`);
-    wrapper?.classList.remove('has-error');
     if (target) target.textContent = '';
-  };
-
-  const validateField = (field) => {
     const value = field.value.trim();
-    clearError(field);
-
     if (field.required && !value) {
-      showError(field, `${field.name.charAt(0).toUpperCase()}${field.name.slice(1)} is required.`);
+      showError(field, `${field.labels?.[0]?.textContent || 'This field'} is required.`);
       return false;
     }
     if (field.type === 'email' && value && !/^[^\s@]+@[^\s@]+\.[^\s@]{2,}$/.test(value)) {
       showError(field, 'Please enter a valid email address.');
       return false;
     }
-    if (field.minLength > 0 && value && value.length < field.minLength) {
+    if (field.minLength > 0 && value.length < field.minLength) {
       showError(field, `Please use at least ${field.minLength} characters.`);
       return false;
     }
     return true;
   };
-
-  const fields = $$('input[name], textarea[name]', form).filter((field) => field.name !== 'company');
-
-  fields.forEach((field) => {
-    field.addEventListener('blur', () => validateField(field));
-    field.addEventListener('input', () => {
-      if (field.closest('.field')?.classList.contains('has-error')) validateField(field);
-    });
-  });
-
-  messageField?.addEventListener('input', (event) => {
-    if (counter) counter.textContent = `${event.target.value.length} / 4000`;
-  });
-
+  fields.forEach((field) => field.addEventListener('blur', () => validate(field)));
   form.addEventListener('submit', async (event) => {
     event.preventDefault();
-
-    const invalid = fields.filter((field) => !validateField(field));
+    const invalid = fields.filter((field) => !validate(field));
     if (invalid.length) {
       invalid[0].focus();
-      if (status) {
-        status.textContent = 'Please correct the highlighted fields.';
-        status.className = 'form-status is-error';
-      }
+      status.textContent = 'Please correct the highlighted fields.';
       return;
     }
-
-    const payload = Object.fromEntries(
-      fields.map((field) => [field.name, field.value.trim()]),
-    );
-
-    submitButton?.classList.add('is-loading');
-    submitButton?.setAttribute('aria-busy', 'true');
-    if (status) {
-      status.textContent = 'Sending your message…';
-      status.className = 'form-status';
-    }
-
+    const payload = Object.fromEntries(fields.map((field) => [field.name, field.value.trim()]));
+    submitButton.disabled = true;
+    submitButton.setAttribute('aria-busy', 'true');
+    status.textContent = 'Sending your message…';
     try {
       const result = await api.post('/api/v1/contact', payload);
       form.reset();
-      if (counter) counter.textContent = '0 / 4000';
-      if (status) {
-        status.textContent = result?.message ?? 'Message sent — thank you.';
-        status.className = 'form-status is-success';
-      }
-      toast(result?.message ?? 'Message sent successfully.', 'success');
+      form.elements.formStartedAt.value = String(Date.now());
+      status.textContent = result?.message ?? 'Message sent — thank you.';
     } catch (error) {
-      const message =
+      status.textContent =
         error instanceof ApiError ? error.message : 'Something went wrong. Please try again.';
-      if (status) {
-        status.textContent = message;
-        status.className = 'form-status is-error';
-      }
-      toast(message, 'error');
     } finally {
-      submitButton?.classList.remove('is-loading');
-      submitButton?.removeAttribute('aria-busy');
+      submitButton.disabled = false;
+      submitButton.removeAttribute('aria-busy');
     }
   });
 };
 
-/* ------------------------------------------------------------- back to top */
-
-const initBackToTop = () => {
-  const button = $('#to-top');
-  if (!button) return;
-
-  button.addEventListener('click', () => {
-    window.scrollTo({ top: 0, behavior: prefersReducedMotion() ? 'auto' : 'smooth' });
-  });
-
-  const onScroll = () => {
-    button.classList.toggle('is-visible', window.scrollY > 640);
+const initTerminal = () => {
+  const form = $('#terminal-form');
+  const input = $('#terminal-input');
+  const output = $('#terminal-output');
+  if (!form || !input || !output) return;
+  const commands = {
+    help: 'Available commands: help, projects, skills, contact, clear, theme #hex.',
+    projects: 'The case studies are at /projects — XyroSocial, StudyForge, and XyroBase.',
+    skills: 'React · TypeScript · Next.js · Node / Express · Firebase · MongoDB · Cloudflare · Vercel.',
+    contact: 'Use the contact page at /contact.',
   };
-
-  onScroll();
-  window.addEventListener('scroll', onScroll, { passive: true });
-};
-
-/* ------------------------------------------------------------------- misc */
-
-const initMisc = () => {
-  const year = $('#current-year');
-  if (year) year.textContent = String(new Date().getFullYear());
-
-  // Smooth-scroll in-page links with header offset.
-  $$('a[href^="#"]').forEach((link) => {
-    link.addEventListener('click', (event) => {
-      const id = link.getAttribute('href');
-      if (!id || id === '#') return;
-      const target = document.querySelector(id);
-      if (!target) return;
-
-      event.preventDefault();
-      const offset = 88;
-      const top = target.getBoundingClientRect().top + window.scrollY - offset;
-      window.scrollTo({ top, behavior: prefersReducedMotion() ? 'auto' : 'smooth' });
-      history.replaceState(null, '', id);
-    });
+  form.addEventListener('submit', (event) => {
+    event.preventDefault();
+    const command = input.value.trim();
+    const [name, argument] = command.split(/\s+/, 2);
+    if (name === 'clear') output.textContent = '';
+    else if (name === 'theme' && isHexColor(argument)) {
+      const accent = accessibleAccent(argument, document.documentElement.dataset.theme);
+      document.documentElement.style.setProperty('--accent-custom', accent);
+      document.documentElement.style.setProperty(
+        '--accent-custom-contrast',
+        contrastRatio(accent, '#111613') > contrastRatio(accent, '#ffffff') ? '#111613' : '#ffffff',
+      );
+      output.textContent = `Accent changed to ${argument}. Use Customise to save or share it.`;
+    } else {
+      output.textContent = commands[name] ?? 'Command not recognised. Type help to see what is available.';
+    }
+    input.value = '';
   });
 };
 
-/* ------------------------------------------------------------------ service worker */
+const initCommandPalette = () => {
+  const dialog = $('#command-palette');
+  const open = $('#palette-open');
+  const search = $('#palette-search');
+  const results = $('#palette-results');
+  if (!dialog || !results) return;
 
-const initServiceWorker = () => {
-  if (!('serviceWorker' in navigator)) return;
-  if (location.protocol !== 'https:' && location.hostname !== 'localhost' && location.hostname !== '127.0.0.1') return;
-
-  window.addEventListener('load', () => {
-    navigator.serviceWorker.register('/sw.js').then((registration) => {
-      registration.addEventListener('updatefound', () => {
-        const newWorker = registration.installing;
-        newWorker?.addEventListener('statechange', () => {
-          if (newWorker.state === 'installed' && navigator.serviceWorker.controller) {
-            // New version available - could show a toast here
-            console.log('New portfolio version available. Refresh to update.');
-          }
-        });
+  const actions = [
+    { label: 'Home', url: '/' },
+    { label: 'About', url: '/about' },
+    { label: 'Projects', url: '/projects' },
+    { label: 'Uses', url: '/uses' },
+    { label: 'Now', url: '/now' },
+    { label: 'Writing', url: '/writing' },
+    { label: 'Contact', url: '/contact' },
+    { label: 'Résumé', url: '/resume' },
+    { label: 'Customise appearance', action: () => $('#customise-open')?.click() },
+  ];
+  let active = 0;
+  const render = () => {
+    const needle = search.value.trim().toLowerCase();
+    const filtered = actions.filter((item) => item.label.toLowerCase().includes(needle));
+    results.replaceChildren();
+    filtered.forEach((item, index) => {
+      const li = document.createElement('li');
+      const button = document.createElement('button');
+      button.type = 'button';
+      button.textContent = item.label;
+      button.setAttribute('aria-selected', String(index === active));
+      button.addEventListener('click', () => {
+        if (item.url) location.href = item.url;
+        else item.action();
+        dialog.close();
       });
-    }).catch((err) => {
-      console.warn('Service worker registration failed:', err);
+      li.append(button);
+      results.append(li);
     });
+    active = Math.min(active, Math.max(filtered.length - 1, 0));
+  };
+  const openDialog = () => {
+    if (dialog.open) return;
+    dialog.showModal();
+    search.value = '';
+    active = 0;
+    render();
+    search.focus();
+  };
+  open?.addEventListener('click', openDialog);
+  document.addEventListener('keydown', (event) => {
+    if ((event.metaKey || event.ctrlKey) && event.key.toLowerCase() === 'k') {
+      event.preventDefault();
+      openDialog();
+    }
+    if (!dialog.open || !['ArrowDown', 'ArrowUp', 'Enter'].includes(event.key)) return;
+    const buttons = $$('button', results);
+    if (event.key === 'ArrowDown') active = (active + 1) % Math.max(buttons.length, 1);
+    if (event.key === 'ArrowUp') active = (active - 1 + buttons.length) % Math.max(buttons.length, 1);
+    if (event.key === 'Enter' && buttons[active]) {
+      event.preventDefault();
+      buttons[active].click();
+      return;
+    }
+    render();
+    buttons[active]?.focus();
+  });
+  search?.addEventListener('input', () => {
+    active = 0;
+    render();
+  });
+  dialog.addEventListener('click', (event) => {
+    if (event.target === dialog) dialog.close();
   });
 };
-
-/* ------------------------------------------------------------------ boot */
 
 const boot = () => {
   initTheme();
   initNavigation();
-  initScrollSpy();
-  initReveals();
-  initCounters();
   initProjectFilters();
   initContactForm();
-  initBackToTop();
-  initMisc();
-  initServiceWorker();
-  document.documentElement.classList.add('is-ready');
+  initTerminal();
+  initCommandPalette();
+  $$('[data-print]').forEach((button) => button.addEventListener('click', () => window.print()));
 };
 
 if (document.readyState === 'loading') {

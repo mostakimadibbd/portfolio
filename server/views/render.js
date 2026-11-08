@@ -3,8 +3,6 @@ import path from 'node:path';
 import { fileURLToPath } from 'node:url';
 import profile from '../data/profile.js';
 import skills from '../data/skills.js';
-import experience from '../data/experience.js';
-import { certifications, education, speaking } from '../data/certifications.js';
 import { getAllTags } from '../services/projects.service.js';
 import { getProjectBySlug, queryProjects } from '../services/projects.service.js';
 import projects from '../data/projects.js';
@@ -14,6 +12,7 @@ const __dirname = path.dirname(fileURLToPath(import.meta.url));
 const templatePath = path.join(__dirname, 'home.template.html');
 const projectsTemplatePath = path.join(__dirname, 'projects.template.html');
 const projectTemplatePath = path.join(__dirname, 'project.template.html');
+const resumeTemplatePath = path.join(__dirname, 'resume.template.html');
 
 /* ------------------------------------------------------------------ utils */
 
@@ -27,6 +26,19 @@ const toClass = (value = '') =>
     .toLowerCase()
     .replace(/[^a-z0-9]+/g, '-')
     .replace(/^-|-$/g, '');
+
+const escapeJson = (value = '') =>
+  JSON.stringify(String(value))
+    .replace(/</g, '\\u003C')
+    .replace(/\n/g, '\\n')
+    .replace(/\r/g, '\\r')
+    .replace(/\t/g, '\\t');
+
+const absoluteUrl = (pathname = '/') => {
+  const origin = config.siteUrl.replace(/\/$/, '');
+  const withLeadingSlash = pathname.startsWith('/') ? pathname : `/${pathname}`;
+  return `${origin}${withLeadingSlash}`;
+};
 
 /* ---------------------------------------------------------------- socials */
 
@@ -51,111 +63,34 @@ const renderSocialLinks = () =>
     )
     .join('');
 
-const renderStackChips = () => {
-  const core = [
-    'Python',
-    'TypeScript',
-    'PyTorch',
-    'scikit-learn',
-    'Node.js',
-    'React',
-    'PostgreSQL',
-    'Docker',
-    'Kubernetes',
-    'AWS',
-    'FastAPI',
-    'MLflow',
-  ];
-  return core
+const renderStackChips = () =>
+  skills
+    .flatMap((group) => group.items)
+    .slice(0, 16)
     .map(
-      (tech) => `<li class="stack-chip"><span aria-hidden="true">▸</span>${escapeHtml(tech)}</li>`,
-    )
-    .join('');
-};
-
-/* ------------------------------------------------------------------ about */
-
-const renderFocusCards = () =>
-  profile.focusAreas
-    .map(
-      (area, index) => `
-        <article class="focus-card" data-reveal style="--delay:${index * 70}ms">
-          <span class="focus-index" aria-hidden="true">0${index + 1}</span>
-          <h3>${escapeHtml(area.title)}</h3>
-          <p>${escapeHtml(area.description)}</p>
-        </article>`,
+      (tech) => `
+        <li class="stack-chip"><span aria-hidden="true">▸</span>${escapeHtml(tech)}</li>`,
     )
     .join('');
 
-const renderHighlightCards = () =>
-  profile.highlights
-    .map(
-      (highlight, index) => `
-        <article class="highlight-card" data-reveal style="--delay:${index * 70}ms">
-          <p class="highlight-metric">${escapeHtml(highlight.metric)}</p>
-          <p class="highlight-label">${escapeHtml(highlight.label)}</p>
-          <p class="highlight-detail">${escapeHtml(highlight.detail)}</p>
-        </article>`,
-    )
-    .join('');
+/* ---------------------------------------------------------------- skills */
 
-/* ----------------------------------------------------------------- skills */
-
-const renderSkillCards = () =>
+const renderSkillGroups = () =>
   skills
     .map(
       (group, index) => `
         <article class="skill-card" data-reveal style="--delay:${index * 60}ms">
           <header class="skill-head">
             <h3>${escapeHtml(group.title)}</h3>
-            <p>${escapeHtml(group.summary)}</p>
+            <ul class="tag-list" aria-label="Technologies in ${escapeHtml(group.title)}">
+              ${group.items.map((item) => `<li class="tag">${escapeHtml(item)}</li>`).join('')}
+            </ul>
           </header>
-          <ul class="skill-list">
-            ${group.items
-              .map(
-                (item) => `
-              <li class="skill-item">
-                <div class="skill-item-top">
-                  <span class="skill-name">${escapeHtml(item.name)}</span>
-                  <span class="skill-level">${item.level}%</span>
-                </div>
-                <div class="meter" role="meter" aria-valuenow="${item.level}" aria-valuemin="0" aria-valuemax="100" aria-label="${escapeHtml(item.name)} proficiency">
-                  <span class="meter-fill" style="--value:${item.level}%"></span>
-                </div>
-                <p class="skill-note">${escapeHtml(item.note)}</p>
-              </li>`,
-              )
-              .join('')}
-          </ul>
         </article>`,
     )
     .join('');
 
-/* ------------------------------------------------------------- experience */
-
-const renderExperienceItems = () =>
-  experience
-    .map(
-      (role) => `
-        <li class="timeline-item" data-reveal>
-          <div class="timeline-marker" aria-hidden="true"></div>
-          <div class="timeline-card">
-            <p class="timeline-period">${escapeHtml(role.start)} — ${escapeHtml(role.end)}</p>
-            <h3 class="timeline-role">${escapeHtml(role.role)}</h3>
-            <p class="timeline-company">${escapeHtml(role.company)} <span aria-hidden="true">·</span> <span class="timeline-type">${escapeHtml(role.employmentType)}</span></p>
-            <p class="timeline-summary">${escapeHtml(role.summary)}</p>
-            <ul class="achievement-list">
-              ${role.achievements.map((item) => `<li>${escapeHtml(item)}</li>`).join('')}
-            </ul>
-            <ul class="tag-list" aria-label="Technologies used">
-              ${role.stack.map((tech) => `<li class="tag">${escapeHtml(tech)}</li>`).join('')}
-            </ul>
-          </div>
-        </li>`,
-    )
-    .join('');
-
-/* --------------------------------------------------------------- projects */
+/* ---------------------------------------------------------------- projects */
 
 const renderTagChips = (limit = 14) =>
   getAllTags()
@@ -172,36 +107,22 @@ const renderProjectCards = (items = queryProjects({ limit: 50 }).items) => {
       (project) => `
         <article class="project-card" data-reveal
           data-title="${escapeHtml(project.title.toLowerCase())}"
-          data-year="${project.year}"
           data-status="${escapeHtml(project.status)}"
           data-featured="${project.featured ? 'true' : 'false'}"
-          data-tags="${escapeHtml(project.tags.map(toClass).join(' '))}">
+          data-tags="${escapeHtml((project.tags ?? []).map(toClass).join(' '))}">
           <div class="project-top">
-            <span class="project-year">${project.year}</span>
             <span class="project-status status-${toClass(project.status)}">${escapeHtml(project.status)}</span>
           </div>
 
           <h3 class="project-title"><a href="/projects/${escapeHtml(project.slug)}">${escapeHtml(project.title)}</a></h3>
           <p class="project-summary">${escapeHtml(project.summary)}</p>
 
-          <dl class="project-metrics">
-            ${project.metrics
-              .map(
-                (metric) => `
-              <div>
-                <dt>${escapeHtml(metric.label)}</dt>
-                <dd>${escapeHtml(metric.value)}</dd>
-              </div>`,
-              )
-              .join('')}
-          </dl>
-
           <ul class="tag-list" aria-label="Technologies used">
-            ${project.tags.slice(0, 6).map((tag) => `<li class="tag">${escapeHtml(tag)}</li>`).join('')}
+            ${(project.tags ?? []).slice(0, 6).map((tag) => `<li class="tag">${escapeHtml(tag)}</li>`).join('')}
           </ul>
 
           <footer class="project-foot">
-            <span class="project-role">${escapeHtml(project.role)}</span>
+            <span class="project-role">${escapeHtml(project.role ?? '')}</span>
             <span class="project-links">
               <a class="text-link" href="/projects/${escapeHtml(project.slug)}">Case study <span aria-hidden="true">→</span></a>
               ${
@@ -216,136 +137,49 @@ const renderProjectCards = (items = queryProjects({ limit: 50 }).items) => {
     .join('');
 };
 
-/* ------------------------------------------------------------ credentials */
+/* ------------------------------------------------------------ json-ld */
 
-const renderEducationItems = () =>
-  education
-    .map(
-      (item) => `
-        <div class="education-item">
-          <p class="education-period">${item.start} — ${item.end}</p>
-          <h4>${escapeHtml(item.degree)}</h4>
-          <p class="education-institution">${escapeHtml(item.institution)} <span aria-hidden="true">·</span> ${escapeHtml(item.location)}</p>
-          <p class="education-detail">${escapeHtml(item.detail)}</p>
-        </div>`,
-    )
-    .join('');
+const buildPersonSchema = () => ({
+  '@context': 'https://schema.org',
+  '@type': 'Person',
+  name: profile.name,
+  alternateName: profile.initials,
+  jobTitle: profile.role,
+  description: profile.summary,
+  url: config.siteUrl,
+  image: absoluteUrl('/assets/og-image.png'),
+  email: profile.email,
+  knowsAbout: skills.flatMap((group) => group.items),
+  sameAs: profile.socials.filter((social) => social.url.startsWith('http')).map((social) => social.url),
+});
 
-const renderCertificationItems = () =>
-  certifications
-    .map(
-      (cert) => `
-        <li class="cert-item">
-          <svg class="cert-icon" viewBox="0 0 24 24" aria-hidden="true"><circle cx="12" cy="9" r="5.5"/><path d="m8.2 13.4-1.4 7 5.2-2.6 5.2 2.6-1.4-7"/></svg>
-          <div>
-            <strong>${escapeHtml(cert.title)}</strong>
-            <small>${escapeHtml(cert.issuer)} · ${cert.year} · ${escapeHtml(cert.credential)}</small>
-          </div>
-        </li>`,
-    )
-    .join('');
+const buildWebSiteSchema = () => ({
+  '@context': 'https://schema.org',
+  '@type': 'WebSite',
+  name: `${profile.name} — Portfolio`,
+  url: config.siteUrl,
+  description: profile.summary,
+  publisher: { '@type': 'Person', name: profile.name },
+});
 
-const renderSpeakingItems = () =>
-  speaking
-    .map(
-      (talk) => `
-        <li class="cert-item">
-          <svg class="cert-icon" viewBox="0 0 24 24" aria-hidden="true"><path d="M4 6h16v10H9l-5 4z"/></svg>
-          <div>
-            <strong>${escapeHtml(talk.title)}</strong>
-            <small>${escapeHtml(talk.event)} · ${talk.date} · ${escapeHtml(talk.type)}</small>
-          </div>
-        </li>`,
-    )
-    .join('');
+const buildWebPageSchema = (title, description, pathname) => ({
+  '@context': 'https://schema.org',
+  '@type': 'WebPage',
+  name: title,
+  description,
+  url: absoluteUrl(pathname),
+  isPartOf: { '@id': absoluteUrl('/') },
+  about: { '@type': 'Person', name: profile.name },
+  breadcrumb: {
+    '@type': 'BreadcrumbList',
+    itemListElement: [
+      { '@type': 'ListItem', position: 1, name: 'Home', item: absoluteUrl('/') },
+      { '@type': 'ListItem', position: 2, name: title, item: absoluteUrl(pathname) },
+    ],
+  },
+});
 
-/* ---------------------------------------------------------------- json-ld */
-
-const escapeJson = (value = '') =>
-  String(value).replace(/[\\]/g, '\\\\').replace(/["]/g, '\\"').replace(/[\n]/g, '\\n').replace(/[\r]/g, '\\r').replace(/[\t]/g, '\\t');
-
-const buildPersonSchema = () => {
-  const sameAs = profile.socials
-    .filter((s) => s.url.startsWith('http'))
-    .map((s) => s.url);
-
-  const knowsAbout = skills.flatMap((g) => g.items.map((i) => i.name));
-
-  const person = {
-    '@context': 'https://schema.org',
-    '@type': 'Person',
-    name: profile.name,
-    alternateName: profile.initials,
-    jobTitle: [profile.role, profile.secondaryRole],
-    description: profile.summary,
-    url: config.siteUrl,
-    image: `${config.siteUrl}/assets/og-image.svg`,
-    email: profile.email,
-    knowsAbout,
-    sameAs,
-    alumniOf: education.map((e) => ({
-      '@type': 'EducationalOrganization',
-      name: e.institution,
-    })),
-    worksFor: experience
-      .filter((e) => e.end === 'Present')
-      .map((e) => ({
-        '@type': 'Organization',
-        name: e.company,
-        description: e.summary,
-      })),
-  };
-
-  return JSON.stringify(person);
-};
-
-const buildWebSiteSchema = () => {
-  const website = {
-    '@context': 'https://schema.org',
-    '@type': 'WebSite',
-    name: `${profile.name} — Portfolio`,
-    url: config.siteUrl,
-    description: profile.summary,
-    publisher: {
-      '@type': 'Person',
-      name: profile.name,
-    },
-    potentialAction: {
-      '@type': 'SearchAction',
-      target: `${config.siteUrl}/#projects?q={search_term_string}`,
-      'query-input': 'required name=search_term_string',
-    },
-  };
-  return JSON.stringify(website);
-};
-
-const buildWebPageSchema = () => {
-  const webpage = {
-    '@context': 'https://schema.org',
-    '@type': 'WebPage',
-    '@id': `${config.siteUrl}/#webpage`,
-    name: `${profile.name} — ${profile.role} & ${profile.secondaryRole}`,
-    description: profile.summary,
-    url: config.siteUrl,
-    isPartOf: { '@id': `${config.siteUrl}/#website` },
-    about: {
-      '@type': 'Person',
-      name: profile.name,
-    },
-    mainEntity: {
-      '@type': 'Person',
-      name: profile.name,
-      jobTitle: profile.role,
-    },
-    breadcrumb: {
-      '@type': 'BreadcrumbList',
-      itemListElement: [
-        { '@type': 'ListItem', position: 1, name: 'Home', item: config.siteUrl },
-      ],
-    },
-  };
-  return JSON.stringify(webpage);
-};
+const jsonLd = (value) => JSON.stringify(value).replace(/</g, '\\u003C');
 
 /* ----------------------------------------------------------------- render */
 
@@ -353,37 +187,23 @@ export const renderHome = async () => {
   const template = await readFile(templatePath, 'utf8');
 
   const replacements = {
-    PROFILE_NAME: profile.name,
-    PROFILE_INITIALS: profile.initials,
-    PROFILE_ROLE: profile.role,
-    PROFILE_SECONDARY_ROLE: profile.secondaryRole,
-    PROFILE_SUMMARY: profile.summary,
-    PROFILE_AVAILABILITY: profile.availability,
-    PROFILE_LOCATION: profile.location,
-    PROFILE_TIMEZONE: profile.timezone,
-    PROFILE_EMAIL: profile.email,
-    PROFILE_LOCATION_URL: profile.locationUrl,
-    PROFILE_RESUME_URL: profile.resumeUrl,
-    PROFILE_EXPERIENCE_YEARS: profile.yearsExperience,
-    PROFILE_PROJECTS: profile.projectsShipped,
-    PROFILE_MODELS: profile.modelsInProduction,
-    PROFILE_TALKS: profile.papersAndTalks,
-    PROFILE_FOCUS: 'Applied ML, MLOps, production inference',
-    PROFILE_LEARNING: profile.currentlyLearning.join(', '),
+    PROFILE_NAME: escapeHtml(profile.name),
+    PROFILE_INITIALS: escapeHtml(profile.initials),
+    PROFILE_ROLE: escapeHtml(profile.role),
+    PROFILE_SUMMARY: escapeHtml(profile.summary),
+    PROFILE_LOCATION: escapeHtml(profile.location),
+    PROFILE_TIMEZONE: escapeHtml(profile.timezone),
+    PROFILE_EMAIL: escapeHtml(profile.email),
+    PROFILE_RESUME_URL: escapeHtml(profile.resumeUrl),
+    PROFILE_GITHUB: escapeHtml(profile.github),
     SOCIAL_LINKS: renderSocialLinks(),
     STACK_CHIPS: renderStackChips(),
-    FOCUS_CARDS: renderFocusCards(),
-    HIGHLIGHT_CARDS: renderHighlightCards(),
-    SKILL_CARDS: renderSkillCards(),
-    EXPERIENCE_ITEMS: renderExperienceItems(),
-    TAG_CHIPS: renderTagChips(),
-    PROJECT_CARDS: renderProjectCards(),
-    EDUCATION_ITEMS: renderEducationItems(),
-    CERTIFICATION_ITEMS: renderCertificationItems(),
-    SPEAKING_ITEMS: renderSpeakingItems(),
-    JSONLD_PERSON: buildPersonSchema(),
-    JSONLD_WEBSITE: buildWebSiteSchema(),
-    JSONLD_WEBPAGE: buildWebPageSchema(),
+    SKILL_GROUPS: renderSkillGroups(),
+    FEATURED_PROJECTS: renderProjectCards(queryProjects({ featured: true, limit: 4 }).items),
+    JSONLD_PERSON: jsonLd(buildPersonSchema()),
+    JSONLD_WEBSITE: jsonLd(buildWebSiteSchema()),
+    JSONLD_WEBPAGE: jsonLd(buildWebPageSchema(`${profile.name} — ${profile.role}`, profile.summary, '/')),
+    CURRENT_YEAR: String(new Date().getFullYear()),
   };
 
   return Object.entries(replacements).reduce(
@@ -395,10 +215,10 @@ export const renderHome = async () => {
 export const renderProjectsPage = async () => {
   const template = await readFile(projectsTemplatePath, 'utf8');
   const replacements = {
-    PROFILE_NAME: profile.name,
-    PROFILE_INITIALS: profile.initials,
-    PROFILE_ROLE: profile.role,
-    PROFILE_RESUME_URL: profile.resumeUrl,
+    PROFILE_NAME: escapeHtml(profile.name),
+    PROFILE_INITIALS: escapeHtml(profile.initials),
+    PROFILE_ROLE: escapeHtml(profile.role),
+    PROFILE_RESUME_URL: escapeHtml(profile.resumeUrl),
     SITE_URL: escapeHtml(config.siteUrl.replace(/\/$/, '')),
     TAG_CHIPS: renderTagChips(Infinity),
     PROJECT_CARDS: renderProjectCards(projects),
@@ -418,47 +238,44 @@ export const renderProjectPage = async (slug) => {
 
   const template = await readFile(projectTemplatePath, 'utf8');
   const replacements = {
-    PROFILE_NAME: profile.name,
-    PROFILE_INITIALS: profile.initials,
-    PROFILE_ROLE: profile.role,
-    PROFILE_RESUME_URL: profile.resumeUrl,
+    PROFILE_NAME: escapeHtml(profile.name),
+    PROFILE_INITIALS: escapeHtml(profile.initials),
+    PROFILE_ROLE: escapeHtml(profile.role),
+    PROFILE_RESUME_URL: escapeHtml(profile.resumeUrl),
     SITE_URL: escapeHtml(config.siteUrl.replace(/\/$/, '')),
     PROJECT_TITLE: escapeHtml(project.title),
     PROJECT_SLUG: encodeURIComponent(project.slug),
     PROJECT_SUMMARY: escapeHtml(project.summary),
-    PROJECT_YEAR: String(project.year),
     PROJECT_STATUS: escapeHtml(project.status),
-    PROJECT_ROLE: escapeHtml(project.role),
-    PROJECT_TEAM: String(project.teamSize),
-    PROJECT_TEAM_LABEL: project.teamSize === 1 ? 'person' : 'people',
+    PROJECT_ROLE: escapeHtml(project.role ?? ''),
     PROJECT_DESCRIPTION: escapeHtml(project.description),
-    PROJECT_METRICS: project.metrics
+    PROJECT_PROBLEM: escapeHtml(project.problem),
+    PROJECT_DECISIONS: (project.decisions ?? []).map((decision) => `<li>${escapeHtml(decision)}</li>`).join(''),
+    PROJECT_STACK: (project.stack ?? []).map((tag) => `<li class="tag">${escapeHtml(tag)}</li>`).join(''),
+    PROJECT_PRODUCTS: (project.products ?? [])
       .map(
-        (metric) => `
-          <div class="case-metric">
-            <dt>${escapeHtml(metric.label)}</dt>
-            <dd>${escapeHtml(metric.value)}</dd>
-          </div>`,
+        (product) => `
+          <li class="product-item">
+            <strong>${escapeHtml(product.name)}</strong>
+            <span class="product-status">${escapeHtml(product.status)}</span>
+            <p>${escapeHtml(product.description ?? '')}</p>
+          </li>`,
       )
       .join(''),
-    PROJECT_HIGHLIGHTS: project.highlights
-      .map((highlight) => `<li>${escapeHtml(highlight)}</li>`)
+    PROJECT_LINKS: (project.links ?? [])
+      .map(
+        (link) =>
+          `<li><a href="${escapeHtml(link.url)}" target="_blank" rel="noopener noreferrer">${escapeHtml(link.label)}</a></li>`,
+      )
       .join(''),
-    PROJECT_TAGS: project.tags
-      .map((tag) => `<li class="tag">${escapeHtml(tag)}</li>`)
-      .join(''),
-    PROJECT_REPO: project.links?.repo
-      ? `<a class="btn btn-primary" href="${escapeHtml(project.links.repo)}" target="_blank" rel="noopener noreferrer">View source <span aria-hidden="true">↗</span></a>`
-      : '',
-    PROJECT_SCHEMA: JSON.stringify({
+    PROJECT_SCHEMA: jsonLd({
       '@context': 'https://schema.org',
       '@type': 'CreativeWork',
       name: project.title,
       description: project.summary,
-      dateCreated: String(project.year),
       creator: { '@type': 'Person', name: profile.name },
-      url: `${config.siteUrl}/projects/${encodeURIComponent(project.slug)}`,
-    }).replace(/</g, '\\u003c'),
+      url: absoluteUrl(`/projects/${project.slug}`),
+    }),
     CURRENT_YEAR: String(new Date().getFullYear()),
   };
 
@@ -475,6 +292,7 @@ export const renderSitemap = () => {
       (project) => `
   <url>
     <loc>${escapeHtml(`${origin}/projects/${encodeURIComponent(project.slug)}`)}</loc>
+    <lastmod>${new Date().toISOString().slice(0, 10)}</lastmod>
     <changefreq>monthly</changefreq>
     <priority>${project.featured ? '0.8' : '0.6'}</priority>
   </url>`,
@@ -485,15 +303,50 @@ export const renderSitemap = () => {
 <urlset xmlns="http://www.sitemaps.org/schemas/sitemap/0.9">
   <url>
     <loc>${escapeHtml(origin)}/</loc>
+    <lastmod>${new Date().toISOString().slice(0, 10)}</lastmod>
     <changefreq>weekly</changefreq>
     <priority>1.0</priority>
   </url>
   <url>
-    <loc>${escapeHtml(origin)}/projects</loc>
+    <loc>${escapeHtml(`${origin}/projects`)}</loc>
+    <lastmod>${new Date().toISOString().slice(0, 10)}</lastmod>
     <changefreq>weekly</changefreq>
     <priority>0.9</priority>
   </url>${projectUrls}
 </urlset>`;
+};
+
+export const renderResume = async () => {
+  const template = await readFile(resumeTemplatePath, 'utf8');
+  const replacements = {
+    PROFILE_NAME: escapeHtml(profile.name),
+    PROFILE_INITIALS: escapeHtml(profile.initials),
+    PROFILE_ROLE: escapeHtml(profile.role),
+    PROFILE_SUMMARY: escapeHtml(profile.summary),
+    PROFILE_LOCATION: escapeHtml(profile.location),
+    PROFILE_EMAIL: escapeHtml(profile.email),
+    PROFILE_GITHUB: escapeHtml(profile.github),
+    SKILL_GROUPS: renderSkillGroups(),
+    PROJECTS_LIST: projects
+      .map(
+        (project) => `
+          <article class="resume-project">
+            <h3>${escapeHtml(project.title)}</h3>
+            <p class="resume-project-meta">${escapeHtml(project.status)}</p>
+            <p>${escapeHtml(project.summary)}</p>
+            <ul>
+              ${(project.decisions ?? []).map((decision) => `<li>${escapeHtml(decision)}</li>`).join('')}
+            </ul>
+          </article>`,
+      )
+      .join(''),
+    CURRENT_YEAR: String(new Date().getFullYear()),
+  };
+
+  return Object.entries(replacements).reduce(
+    (html, [key, value]) => html.replaceAll(`{{${key}}}`, value),
+    template,
+  );
 };
 
 export default renderHome;

@@ -1,37 +1,47 @@
 import helmet from 'helmet';
 import cors from 'cors';
 import compression from 'compression';
+import { randomBytes } from 'node:crypto';
 import config from '../config/index.js';
+
+const createNonce = (_req, res, next) => {
+  res.locals.cspNonce = randomBytes(18).toString('base64');
+  next();
+};
+
+const setContentSecurityPolicy = (_req, res, next) => {
+  const directives = [
+    "default-src 'self'",
+    "base-uri 'self'",
+    "font-src 'self' data:",
+    "form-action 'self'",
+    "frame-ancestors 'none'",
+    "img-src 'self' data: https:",
+    "object-src 'none'",
+    `script-src 'self' 'nonce-${res.locals.cspNonce}'`,
+    "script-src-attr 'none'",
+    "style-src 'self' 'unsafe-inline'",
+    "connect-src 'self'",
+  ];
+  if (config.isProd) directives.push('upgrade-insecure-requests');
+  res.setHeader('Content-Security-Policy', directives.join('; '));
+  next();
+};
 
 /**
  * Security headers, CORS policy and compression.
  */
 export const securityMiddleware = [
+  createNonce,
   helmet({
-    contentSecurityPolicy: {
-      useDefaults: true,
-      directives: {
-        'default-src': ["'self'"],
-        'script-src': ["'self'"],
-        'style-src': ["'self'", "'unsafe-inline'"],
-        'img-src': ["'self'", 'data:', 'https:'],
-        'font-src': ["'self'", 'data:'],
-        'connect-src': ["'self'"],
-        'frame-ancestors': ["'none'"],
-        'object-src': ["'none'"],
-        'base-uri': ["'self'"],
-        'form-action': ["'self'"],
-        // helmet enables this by default; in development it would rewrite
-        // http://localhost asset requests to https and break them.
-        'upgrade-insecure-requests': config.isProd ? [] : null,
-      },
-    },
+    contentSecurityPolicy: false,
     // frame-ancestors 'none' in the CSP is stricter and more modern than X-Frame-Options.
     frameGuard: false,
     crossOriginEmbedderPolicy: false,
     referrerPolicy: { policy: 'strict-origin-when-cross-origin' },
     hsts: config.isProd ? { maxAge: 15552000, includeSubDomains: true } : false,
   }),
+  setContentSecurityPolicy,
 
   cors({
     origin: (origin, callback) => {
