@@ -543,6 +543,9 @@ export const renderProjectsPage = async () => {
 export const renderProjectPage = async (slug) => {
   const project = getProjectBySlug(slug);
   if (!project) return null;
+  const index = projects.findIndex((item) => item.slug === project.slug);
+  const previous = projects[(index - 1 + projects.length) % projects.length];
+  const next = projects[(index + 1) % projects.length];
 
   const template = await readFile(projectTemplatePath, 'utf8');
   const replacements = {
@@ -559,6 +562,16 @@ export const renderProjectPage = async (slug) => {
     PROJECT_DESCRIPTION: escapeHtml(project.description),
     PROJECT_PROBLEM: escapeHtml(project.problem),
     PROJECT_DECISIONS: (project.decisions ?? []).map((decision) => `<li>${escapeHtml(decision)}</li>`).join(''),
+    PROJECT_ARCHITECTURE: project.architecture?.length
+      ? `<section class="case-section" aria-labelledby="case-architecture"><p class="eyebrow">03 — Architecture</p><h2 id="case-architecture">How the pieces fit together</h2>${renderArchitecture(project.architecture)}</section>`
+      : '',
+    PROJECT_FIXES: project.fixes?.length
+      ? `<section class="case-section" aria-labelledby="case-fixes"><p class="eyebrow">04 — Engineering notes</p><h2 id="case-fixes">What changed and why</h2><ul class="case-highlights">${project.fixes.map((item) => `<li>${escapeHtml(item)}</li>`).join('')}</ul></section>`
+      : '',
+    PREVIOUS_SLUG: encodeURIComponent(previous.slug),
+    PREVIOUS_TITLE: escapeHtml(previous.title),
+    NEXT_SLUG: encodeURIComponent(next.slug),
+    NEXT_TITLE: escapeHtml(next.title),
     PROJECT_STACK: (project.stack ?? []).map((tag) => `<li class="tag">${escapeHtml(tag)}</li>`).join(''),
     PROJECT_PRODUCTS: (project.products ?? [])
       .map(
