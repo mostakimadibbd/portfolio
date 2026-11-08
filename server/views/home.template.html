@@ -7,6 +7,7 @@
   <meta name="description" content="{{PROFILE_SUMMARY}}">
   <meta name="author" content="{{PROFILE_NAME}}">
   <meta name="theme-color" content="#fbfaf7">
+  <link rel="canonical" href="{{SITE_URL}}">
 
   <meta property="og:type" content="website">
   <meta property="og:title" content="{{PROFILE_NAME}} — {{PROFILE_ROLE}}">
@@ -41,7 +42,11 @@
 
       <nav class="site-nav" id="site-nav" aria-label="Primary">
         <ul>
-          <li><a href="#projects" data-nav-link>Projects</a></li>
+          <li><a href="/about">About</a></li>
+          <li><a href="/projects">Projects</a></li>
+          <li><a href="/uses">Uses</a></li>
+          <li><a href="/now">Now</a></li>
+          <li><a href="/writing">Writing</a></li>
           <li><a href="#skills" data-nav-link>Skills</a></li>
           <li><a href="#contact" data-nav-link>Contact</a></li>
         </ul>
@@ -159,6 +164,18 @@
       </div>
     </section>
 
+    <section class="section section-alt" aria-labelledby="github-title">
+      <div class="container github-layout">
+        <div>
+          <p class="eyebrow">Out in the open</p>
+          <h2 class="section-title" id="github-title">A little more on GitHub.</h2>
+          <p class="section-lead">A cached snapshot of public repositories and activity. The project case studies remain the source of truth.</p>
+          <a class="text-link" href="{{PROFILE_GITHUB}}" target="_blank" rel="noopener noreferrer">Open my GitHub profile <span aria-hidden="true">↗</span></a>
+        </div>
+        <div class="github-card">{{GITHUB_SECTION}}</div>
+      </div>
+    </section>
+
     <!-- ============================ CONTACT CTA ============================ -->
     <section class="section" id="contact">
       <div class="container">
@@ -229,6 +246,7 @@
               <label for="cf-company">Company</label>
               <input type="text" id="cf-company" name="company" tabindex="-1" autocomplete="off">
             </div>
+            <input type="hidden" name="formStartedAt" value="{{FORM_STARTED_AT}}">
 
             <button class="btn btn-primary btn-block" type="submit" id="cf-submit">
               <span class="btn-label">Send message</span>
@@ -269,6 +287,27 @@
   </button>
 
   <div class="toast-region" id="toast-region" role="status" aria-live="polite" aria-atomic="false"></div>
+  <button class="customise-trigger" id="customise-open" type="button" aria-haspopup="dialog" aria-controls="theme-panel">Customise</button>
+  <section class="theme-panel" id="theme-panel" role="dialog" aria-modal="true" aria-labelledby="theme-title" hidden>
+    <div class="theme-panel-head"><h2 id="theme-title">Make it yours</h2><button class="icon-btn" id="customise-close" type="button" aria-label="Close customiser">×</button></div>
+    <label class="theme-field">Mode
+      <select id="theme-mode"><option value="system">System</option><option value="light">Light</option><option value="dark">Dark</option></select>
+    </label>
+    <fieldset class="theme-field"><legend>Accent</legend><div class="accent-presets" id="accent-presets">{{ACCENT_PRESETS}}</div></fieldset>
+    <label class="theme-field">Custom accent<input id="accent-custom" type="color" value="#b45335"></label>
+    <fieldset class="theme-field"><legend>Corner style</legend><div class="choice-row"><label><input type="radio" name="radius" value="sharp"> Sharp</label><label><input type="radio" name="radius" value="soft" checked> Soft</label><label><input type="radio" name="radius" value="round"> Round</label></div></fieldset>
+    <fieldset class="theme-field"><legend>Type</legend><div class="choice-row"><label><input type="radio" name="font" value="sans" checked> Sans</label><label><input type="radio" name="font" value="mono"> Mono-leaning</label></div></fieldset>
+    <fieldset class="theme-field"><legend>Motion</legend><div class="choice-row"><label><input type="radio" name="motion" value="full" checked> Full</label><label><input type="radio" name="motion" value="reduced"> Reduced</label></div></fieldset>
+    <div class="theme-panel-actions"><button class="btn btn-ghost btn-sm" id="theme-reset" type="button">Reset</button><button class="btn btn-ghost btn-sm" id="theme-share" type="button">Copy theme link</button></div>
+    <p class="theme-status" id="theme-status" role="status" aria-live="polite"></p>
+  </section>
+  <dialog class="command-palette" id="command-palette" aria-labelledby="palette-title">
+    <h2 class="sr-only" id="palette-title">Command menu</h2>
+    <label class="sr-only" for="palette-search">Search pages and actions</label>
+    <input id="palette-search" type="search" placeholder="Jump to a page or action…" autocomplete="off">
+    <ul id="palette-results"></ul>
+    <p class="palette-hint">↑ ↓ to navigate · Enter to select · Esc to close</p>
+  </dialog>
 
   <script type="module" src="/js/main.js"></script>
 </body>

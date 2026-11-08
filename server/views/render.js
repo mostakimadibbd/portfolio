@@ -141,11 +141,14 @@ const renderProjectCards = (items = queryProjects({ limit: 50 }).items) => {
             <span class="project-role">${escapeHtml(project.role ?? '')}</span>
             <span class="project-links">
               <a class="text-link" href="/projects/${escapeHtml(project.slug)}">Case study <span aria-hidden="true">→</span></a>
-              ${
-                project.links?.repo
-                  ? `<a class="text-link" href="${escapeHtml(project.links.repo)}" target="_blank" rel="noopener noreferrer">Source <span aria-hidden="true">↗</span></a>`
-                  : ''
-              }
+              ${(project.links ?? [])
+                .filter((link) => isSafeExternalUrl(link.url))
+                .slice(0, 1)
+                .map(
+                  (link) =>
+                    `<a class="text-link" href="${escapeHtml(link.url)}" target="_blank" rel="noopener noreferrer">${escapeHtml(link.label)} <span aria-hidden="true">↗</span></a>`,
+                )
+                .join('')}
             </span>
           </footer>
         </article>`,
@@ -163,7 +166,7 @@ const buildPersonSchema = () => ({
   jobTitle: profile.role,
   description: profile.summary,
   url: config.siteUrl,
-  image: absoluteUrl('/assets/og-image.png'),
+  image: absoluteUrl('/assets/og-image.svg'),
   email: profile.email,
   knowsAbout: skills.flatMap((group) => group.items),
   sameAs: profile.socials.filter((social) => social.url.startsWith('http')).map((social) => social.url),
@@ -195,7 +198,13 @@ const buildWebPageSchema = (title, description, pathname) => ({
   },
 });
 
-const jsonLd = (value) => JSON.stringify(value).replace(/</g, '\\u003C');
+const jsonLd = (value) =>
+  JSON.stringify(value)
+    .replace(/</g, '\\u003c')
+    .replace(/>/g, '\\u003e')
+    .replace(/&/g, '\\u0026')
+    .replace(/\u2028/g, '\\u2028')
+    .replace(/\u2029/g, '\\u2029');
 
 const renderBreadcrumbSchema = (items) => ({
   '@context': 'https://schema.org',
@@ -208,9 +217,8 @@ const renderBreadcrumbSchema = (items) => ({
   })),
 });
 
-const renderSitePage = async ({ title, description, pathname, content, type = 'website', schema = [] }) => {
-  const template = await readFile(siteTemplatePath, 'utf8');
-  const accents = [
+const renderAccentPresets = () =>
+  [
     ['Xyro', '#e744cb'],
     ['Terracotta', '#b45335'],
     ['Ocean', '#176b87'],
@@ -219,7 +227,15 @@ const renderSitePage = async ({ title, description, pathname, content, type = 'w
     ['Rose', '#b83f64'],
     ['Indigo', '#5949be'],
     ['Graphite', '#59636a'],
-  ];
+  ]
+    .map(
+      ([name, color]) =>
+        `<button class="accent-swatch" type="button" data-accent="${color}" aria-label="${name}" title="${name}" style="--swatch:${color}"></button>`,
+    )
+    .join('');
+
+const renderSitePage = async ({ title, description, pathname, content, type = 'website', schema = [] }) => {
+  const template = await readFile(siteTemplatePath, 'utf8');
   const replacements = {
     TITLE: escapeHtml(title),
     DESCRIPTION: escapeHtml(description),
@@ -229,12 +245,7 @@ const renderSitePage = async ({ title, description, pathname, content, type = 'w
     STRUCTURED_DATA: schema
       .map((item) => `<script type="application/ld+json" nonce="{{CSP_NONCE}}">${jsonLd(item)}</script>`)
       .join('\n  '),
-    ACCENT_PRESETS: accents
-      .map(
-        ([name, color]) =>
-          `<button class="accent-swatch" type="button" data-accent="${color}" aria-label="${name}" title="${name}" style="--swatch:${color}"></button>`,
-      )
-      .join(''),
+    ACCENT_PRESETS: renderAccentPresets(),
     CONTENT: content,
     YEAR: String(new Date().getFullYear()),
   };
@@ -253,10 +264,37 @@ const renderPageSchema = (title, description, pathname) => ({
   about: { '@type': 'Person', name: profile.name },
 });
 
+const isSafeExternalUrl = (value) => {
+  try {
+    return new URL(value).protocol === 'https:';
+  } catch {
+    return false;
+  }
+};
+
 /* ----------------------------------------------------------------- render */
 
 export const renderHome = async (githubSnapshot = null) => {
   const template = await readFile(templatePath, 'utf8');
+  const repositories = (githubSnapshot?.repositories ?? [])
+    .filter((repository) => isSafeExternalUrl(repository.url))
+    .slice(0, 4)
+    .map(
+      (repository) => `
+        <li><a href="${escapeHtml(repository.url)}" target="_blank" rel="noopener noreferrer">
+          <strong>${escapeHtml(repository.name)}</strong>
+          <span>${escapeHtml(repository.description || repository.language || 'GitHub repository')}</span>
+        </a></li>`,
+    )
+    .join('');
+  const languages = (githubSnapshot?.languages ?? [])
+    .map((language) => `<li class="tag">${escapeHtml(language)}</li>`)
+    .join('');
+  const activity = (githubSnapshot?.activity ?? [])
+    .slice(0, 3)
+    .map((item) => `<li>${escapeHtml(item)}</li>`)
+    .join('');
+  const githubSection = `${repositories ? `<h3>Recent repositories</h3><ul class="repo-list">${repositories}</ul>` : '<p class="muted">See the project case studies for the work currently listed here.</p>'}${languages ? `<h3>Languages</h3><ul class="tag-list">${languages}</ul>` : ''}${activity ? `<h3>Recent public activity</h3><ul class="activity-list">${activity}</ul>` : ''}`;
 
   const replacements = {
     PROFILE_NAME: escapeHtml(profile.name),
@@ -268,25 +306,18 @@ export const renderHome = async (githubSnapshot = null) => {
     PROFILE_EMAIL: escapeHtml(profile.email),
     PROFILE_RESUME_URL: escapeHtml(profile.resumeUrl),
     PROFILE_GITHUB: escapeHtml(profile.github),
+    SITE_URL: escapeHtml(absoluteUrl('/')),
+    FORM_STARTED_AT: String(Date.now()),
     SOCIAL_LINKS: renderSocialLinks(),
     STACK_CHIPS: renderStackChips(),
     SKILL_GROUPS: renderSkillGroups(),
     FEATURED_PROJECTS: renderProjectCards(queryProjects({ featured: true, limit: 4 }).items),
+    GITHUB_SECTION: githubSection,
     JSONLD_PERSON: jsonLd(buildPersonSchema()),
     JSONLD_WEBSITE: jsonLd(buildWebSiteSchema()),
     JSONLD_WEBPAGE: jsonLd(buildWebPageSchema(`${profile.name} — ${profile.role}`, profile.summary, '/')),
     CURRENT_YEAR: String(new Date().getFullYear()),
-    GITHUB_SNASHOT: githubSnapshot
-      ? `
-          <div class="github-snapshot">
-            <h3>Recent GitHub Activity</h3>
-            <ul>
-              <li><strong>⭐ Stars:</strong> ${githubSnapshot.stars || 'N/A'}</li>
-              <li><strong>📂 Repos:</strong> ${githubSnapshot.repos || 'N/A'}</li>
-              <li><strong>🏆 Contributions:</strong> ${githubSnapshot.contributions || 'N/A'}</li>
-            </ul>
-          </div>`
-      : '',
+    ACCENT_PRESETS: renderAccentPresets(),
   };
 
   return Object.entries(replacements).reduce(
@@ -548,6 +579,7 @@ export const renderProjectPage = async (slug) => {
       )
       .join(''),
     PROJECT_LINKS: (project.links ?? [])
+      .filter((link) => isSafeExternalUrl(link.url))
       .map(
         (link) =>
           `<li><a href="${escapeHtml(link.url)}" target="_blank" rel="noopener noreferrer">${escapeHtml(link.label)}</a></li>`,
