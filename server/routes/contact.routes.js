@@ -22,7 +22,7 @@ router.post(
     const { record, delivery } = await submitContactMessage(payload);
 
     sendCreated(res, {
-      id: record.id,
+      ...(record ? { id: record.id } : {}),
       received: true,
       delivered: delivery.delivered,
       message: 'Thanks — your message has been received. I reply to every enquiry within two business days.',

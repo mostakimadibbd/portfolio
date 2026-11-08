@@ -1,6 +1,8 @@
 import { z } from 'zod';
 import { sendContactEmail, saveMessage } from './mailer.service.js';
 import logger from '../utils/logger.js';
+import config from '../config/index.js';
+import { ApiError } from '../utils/ApiError.js';
 
 export const contactSchema = z.object({
   name: z
@@ -21,11 +23,30 @@ export const contactSchema = z.object({
 });
 
 /**
- * Persists the enquiry and attempts delivery. Delivery failures never block
- * the request: the message is safely stored regardless.
+ * Uses the durable mail relay instead of an ephemeral function filesystem
+ * in serverless deployments. Traditional servers persist locally first.
  */
 export const submitContactMessage = async (payload) => {
   const { name, email, subject, message } = payload;
+
+  if (config.isServerless) {
+    if (!config.mail.endpoint) {
+      throw new ApiError(503, 'Contact delivery is not configured for this deployment.', {
+        code: 'CONTACT_UNAVAILABLE',
+      });
+    }
+
+    try {
+      const delivery = await sendContactEmail({ name, email, subject, message });
+      return { record: null, delivery };
+    } catch (error) {
+      logger.error('Contact delivery failed in serverless deployment', { message: error.message });
+      throw new ApiError(503, 'The contact service is temporarily unavailable. Please try again later.', {
+        code: 'CONTACT_UNAVAILABLE',
+        cause: error,
+      });
+    }
+  }
 
   const record = await saveMessage({ name, email, subject, message });
 

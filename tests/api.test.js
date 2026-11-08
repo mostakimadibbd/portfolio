@@ -39,6 +39,40 @@ describe('GET /', () => {
   });
 });
 
+describe('GET /projects', () => {
+  test('renders the searchable project catalogue and case-study links', async () => {
+    const response = await request.get('/projects').expect(200);
+
+    assert.match(response.headers['content-type'], /text\/html/);
+    assert.ok(response.text.includes('A few things I’ve built'));
+    assert.ok(response.text.includes('id="project-filters"'));
+    assert.ok(response.text.includes('/projects/atlas-doc-intelligence'));
+  });
+
+  test('renders an individual project case study', async () => {
+    const response = await request.get('/projects/atlas-doc-intelligence').expect(200);
+
+    assert.match(response.headers['content-type'], /text\/html/);
+    assert.ok(response.text.includes('What it does'));
+    assert.ok(response.text.includes('Manual review effort'));
+    assert.ok(response.text.includes('"@type":"CreativeWork"'));
+  });
+
+  test('returns not found for an unknown case study', async () => {
+    await request.get('/projects/not-a-project').expect(404);
+  });
+});
+
+describe('GET /sitemap.xml', () => {
+  test('includes the project index and individual case studies', async () => {
+    const response = await request.get('/sitemap.xml').expect(200);
+
+    assert.match(response.headers['content-type'], /application\/xml/);
+    assert.ok(response.text.includes('/projects</loc>'));
+    assert.ok(response.text.includes('/projects/atlas-doc-intelligence</loc>'));
+  });
+});
+
 describe('GET /api/v1/health', () => {
   test('reports service status', async () => {
     const response = await request.get('/api/v1/health').expect(200);

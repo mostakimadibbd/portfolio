@@ -22,12 +22,14 @@ const load = async () => {
   try {
     const raw = await readFile(filePath, 'utf8');
     const parsed = JSON.parse(raw);
-    cache = Array.isArray(parsed) ? parsed : [];
+    if (!Array.isArray(parsed)) throw new TypeError('Message store must contain a JSON array');
+    cache = parsed;
   } catch (error) {
-    if (error.code !== 'ENOENT') {
-      logger.warn('Could not read message store, starting empty', { message: error.message });
+    if (error.code === 'ENOENT') cache = [];
+    else {
+      logger.error('Could not read message store', { message: error.message });
+      throw error;
     }
-    cache = [];
   }
   return cache;
 };
@@ -41,9 +43,7 @@ const persist = async () => {
 
 /** Serialises writes so concurrent requests cannot interleave. */
 const enqueuePersist = () => {
-  writeQueue = writeQueue
-    .then(persist)
-    .catch((error) => logger.error('Failed to persist messages', { message: error.message }));
+  writeQueue = writeQueue.then(persist, persist);
   return writeQueue;
 };
 

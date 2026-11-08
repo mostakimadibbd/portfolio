@@ -1,8 +1,8 @@
 # Mostakim Adib — Portfolio
 
 A production-grade full-stack portfolio for an AI/ML and software engineer. Server-rendered
-Express backend, a zero-framework frontend, and a small JSON API that powers the dynamic
-sections.
+Express backend, a zero-framework frontend, a small JSON API, a searchable project catalogue
+and individual project case studies.
 
 Built for speed: server-side rendered HTML, no client framework, ~12 KB gzipped for the home
 page, and a strict CSP with no third-party scripts.
@@ -17,7 +17,7 @@ page, and a strict CSP with no third-party scripts.
 | **Frontend** | Vanilla ES modules, CSS custom properties, light/dark themes, no framework |
 | **Backend** | Express 4, layered routes/services/middleware, Zod validation, Helmet CSP |
 | **API** | Versioned REST (`/api/v1`) with a consistent JSON envelope and pagination |
-| **Contact** | Validated + rate-limited + honeypot-protected, persisted to disk, optional mail relay |
+| **Contact** | Validated + rate-limited + honeypot-protected; disk-backed on servers, mail-relay-backed on serverless |
 | **Quality** | 18 automated tests (`node:test`), structured logging, graceful shutdown |
 | **A11y** | Semantic landmarks, labelled controls, visible focus rings, `prefers-reduced-motion` support |
 
@@ -55,7 +55,7 @@ portfolio/
 │   ├── services/                # Business logic (projects query, contact, mail)
 │   ├── store/messageStore.js    # Atomic JSON persistence
 │   ├── utils/                   # ApiError, logger, async wrapper, responses
-│   └── views/                   # HTML template + server-side renderer
+│   └── views/                   # Home, project index and case-study templates
 ├── public/                      # Static assets: CSS, JS, SVG, robots.txt
 ├── tests/api.test.js            # Integration tests
 └── var/messages.json            # Runtime storage (git-ignored)
@@ -88,6 +88,8 @@ All responses use a consistent envelope.
 | `GET` | `/api/v1/projects/stats` | Catalogue statistics |
 | `GET` | `/api/v1/projects/:slug` | Single project |
 | `POST` | `/api/v1/contact` | Submit an enquiry (rate limited, honeypot protected) |
+| `GET` | `/projects` | Server-rendered, searchable project catalogue |
+| `GET` | `/projects/:slug` | Server-rendered project case study |
 
 Example:
 
@@ -129,6 +131,7 @@ Every value has a working default; `.env` is optional. See `.env.example`.
 |---|---|---|
 | `PORT` | `3000` | HTTP port |
 | `NODE_ENV` | `development` | `production` enables JSON logging, HSTS and asset caching |
+| `SITE_URL` | `http://localhost:3000` | Public origin used by canonical URLs and the sitemap |
 | `CORS_ORIGINS` | `*` | Comma-separated allowlist |
 | `RATE_LIMIT_MAX` | `300` | API requests per window per IP |
 | `CONTACT_RATE_LIMIT_MAX` | `5` | Contact submissions per window per IP |
@@ -138,13 +141,16 @@ Every value has a working default; `.env` is optional. See `.env.example`.
 | `MESSAGES_FILE` | `./var/messages.json` | Where enquiries are stored |
 | `LOG_LEVEL` | `info` | `debug` \| `info` \| `warn` \| `error` |
 
-Without `MAIL_ENDPOINT` the site still works — messages are persisted and logged.
+Without `MAIL_ENDPOINT` a traditional server persists messages locally and logs them. Serverless
+deployments must configure a mail relay: function filesystems are ephemeral, so the contact
+endpoint returns `503` rather than claiming that an enquiry was durably stored.
 
 ---
 
 ## Performance
 
 - **SSR** — one HTML round trip, no client-side data waterfall.
+- **Project pages** — server-rendered catalogue and individual case studies with a generated sitemap.
 - **~12 KB** gzipped for the home page (67 KB raw).
 - **Zero dependencies** in the browser bundle — no framework, no polyfills.
 - **Compression** via `compression` middleware; immutable caching for static assets.
@@ -183,12 +189,13 @@ submission (valid, invalid email, short message, honeypot) and static asset deli
 
 ## Deployment
 
-Any Node host works. Set `NODE_ENV=production`, configure the environment variables, and
-run:
+Any Node host works. Set `NODE_ENV=production`, configure `SITE_URL`, and run:
 
 ```bash
 npm ci --omit=dev && npm start
 ```
 
 Put it behind a reverse proxy (nginx, Caddy) or a managed platform (Render, Railway, Fly.io).
-The app binds to `0.0.0.0` and trusts one proxy hop in production.
+For Vercel/serverless, the `api/index.js` entry point is used; set `SITE_URL` and configure
+`MAIL_ENDPOINT` (and its credentials) so enquiries go to durable storage outside the function.
+The standalone server binds to `0.0.0.0` and trusts one proxy hop in production.

@@ -6,11 +6,14 @@ import skills from '../data/skills.js';
 import experience from '../data/experience.js';
 import { certifications, education, speaking } from '../data/certifications.js';
 import { getAllTags } from '../services/projects.service.js';
-import { queryProjects } from '../services/projects.service.js';
+import { getProjectBySlug, queryProjects } from '../services/projects.service.js';
+import projects from '../data/projects.js';
 import config from '../config/index.js';
 
 const __dirname = path.dirname(fileURLToPath(import.meta.url));
 const templatePath = path.join(__dirname, 'home.template.html');
+const projectsTemplatePath = path.join(__dirname, 'projects.template.html');
+const projectTemplatePath = path.join(__dirname, 'project.template.html');
 
 /* ------------------------------------------------------------------ utils */
 
@@ -154,9 +157,9 @@ const renderExperienceItems = () =>
 
 /* --------------------------------------------------------------- projects */
 
-const renderTagChips = () =>
+const renderTagChips = (limit = 14) =>
   getAllTags()
-    .slice(0, 14)
+    .slice(0, limit)
     .map(
       (tag) =>
         `<button class="chip" type="button" data-filter="${escapeHtml(toClass(tag.name))}" aria-pressed="false">${escapeHtml(tag.name)}</button>`,
@@ -180,7 +183,7 @@ const renderProjectCards = () => {
             <span class="project-status status-${toClass(project.status)}">${escapeHtml(project.status)}</span>
           </div>
 
-          <h3 class="project-title">${escapeHtml(project.title)}</h3>
+          <h3 class="project-title"><a href="/projects/${escapeHtml(project.slug)}">${escapeHtml(project.title)}</a></h3>
           <p class="project-summary">${escapeHtml(project.summary)}</p>
 
           <dl class="project-metrics">
@@ -201,11 +204,14 @@ const renderProjectCards = () => {
 
           <footer class="project-foot">
             <span class="project-role">${escapeHtml(project.role)}</span>
-            ${
-              project.links?.repo
-                ? `<a class="text-link" href="${escapeHtml(project.links.repo)}" target="_blank" rel="noopener noreferrer">Source <span aria-hidden="true">↗</span></a>`
-                : '<span class="text-link is-muted">Private repository</span>'
-            }
+            <span class="project-links">
+              <a class="text-link" href="/projects/${escapeHtml(project.slug)}">Case study <span aria-hidden="true">→</span></a>
+              ${
+                project.links?.repo
+                  ? `<a class="text-link" href="${escapeHtml(project.links.repo)}" target="_blank" rel="noopener noreferrer">Source <span aria-hidden="true">↗</span></a>`
+                  : ''
+              }
+            </span>
           </footer>
         </article>`,
     )
@@ -360,6 +366,7 @@ export const renderHome = async () => {
     PROFILE_EMAIL: profile.email,
     PROFILE_LOCATION_URL: profile.locationUrl,
     PROFILE_RESUME_URL: profile.resumeUrl,
+    SITE_URL: escapeHtml(config.siteUrl.replace(/\/$/, '')),
     PROFILE_EXPERIENCE_YEARS: profile.yearsExperience,
     PROFILE_PROJECTS: profile.projectsShipped,
     PROFILE_MODELS: profile.modelsInProduction,
@@ -386,6 +393,110 @@ export const renderHome = async () => {
     (html, [key, value]) => html.replaceAll(`{{${key}}}`, value),
     template,
   );
+};
+
+export const renderProjectsPage = async () => {
+  const template = await readFile(projectsTemplatePath, 'utf8');
+  const replacements = {
+    PROFILE_NAME: profile.name,
+    PROFILE_INITIALS: profile.initials,
+    PROFILE_ROLE: profile.role,
+    PROFILE_RESUME_URL: profile.resumeUrl,
+    SITE_URL: escapeHtml(config.siteUrl.replace(/\/$/, '')),
+    TAG_CHIPS: renderTagChips(Infinity),
+    PROJECT_CARDS: renderProjectCards(),
+    PROJECT_COUNT: String(queryProjects({ limit: 50 }).meta.total),
+    CURRENT_YEAR: String(new Date().getFullYear()),
+  };
+
+  return Object.entries(replacements).reduce(
+    (html, [key, value]) => html.replaceAll(`{{${key}}}`, value),
+    template,
+  );
+};
+
+export const renderProjectPage = async (slug) => {
+  const project = getProjectBySlug(slug);
+  if (!project) return null;
+
+  const template = await readFile(projectTemplatePath, 'utf8');
+  const replacements = {
+    PROFILE_NAME: profile.name,
+    PROFILE_INITIALS: profile.initials,
+    PROFILE_ROLE: profile.role,
+    PROFILE_RESUME_URL: profile.resumeUrl,
+    SITE_URL: escapeHtml(config.siteUrl.replace(/\/$/, '')),
+    PROJECT_TITLE: escapeHtml(project.title),
+    PROJECT_SLUG: encodeURIComponent(project.slug),
+    PROJECT_SUMMARY: escapeHtml(project.summary),
+    PROJECT_YEAR: String(project.year),
+    PROJECT_STATUS: escapeHtml(project.status),
+    PROJECT_ROLE: escapeHtml(project.role),
+    PROJECT_TEAM: String(project.teamSize),
+    PROJECT_TEAM_LABEL: project.teamSize === 1 ? 'person' : 'people',
+    PROJECT_DESCRIPTION: escapeHtml(project.description),
+    PROJECT_METRICS: project.metrics
+      .map(
+        (metric) => `
+          <div class="case-metric">
+            <dt>${escapeHtml(metric.label)}</dt>
+            <dd>${escapeHtml(metric.value)}</dd>
+          </div>`,
+      )
+      .join(''),
+    PROJECT_HIGHLIGHTS: project.highlights
+      .map((highlight) => `<li>${escapeHtml(highlight)}</li>`)
+      .join(''),
+    PROJECT_TAGS: project.tags
+      .map((tag) => `<li class="tag">${escapeHtml(tag)}</li>`)
+      .join(''),
+    PROJECT_REPO: project.links?.repo
+      ? `<a class="btn btn-primary" href="${escapeHtml(project.links.repo)}" target="_blank" rel="noopener noreferrer">View source <span aria-hidden="true">↗</span></a>`
+      : '',
+    PROJECT_SCHEMA: JSON.stringify({
+      '@context': 'https://schema.org',
+      '@type': 'CreativeWork',
+      name: project.title,
+      description: project.summary,
+      dateCreated: String(project.year),
+      creator: { '@type': 'Person', name: profile.name },
+      url: `${config.siteUrl}/projects/${encodeURIComponent(project.slug)}`,
+    }).replace(/</g, '\\u003c'),
+    CURRENT_YEAR: String(new Date().getFullYear()),
+  };
+
+  return Object.entries(replacements).reduce(
+    (html, [key, value]) => html.replaceAll(`{{${key}}}`, value),
+    template,
+  );
+};
+
+export const renderSitemap = () => {
+  const origin = config.siteUrl.replace(/\/$/, '');
+  const projectUrls = projects
+    .map(
+      (project) => `
+  <url>
+    <loc>${escapeHtml(`${origin}/projects/${encodeURIComponent(project.slug)}`)}</loc>
+    <changefreq>monthly</changefreq>
+    <priority>${project.featured ? '0.8' : '0.6'}</priority>
+  </url>`,
+    )
+    .join('');
+
+  return `<?xml version="1.0" encoding="UTF-8"?>
+<urlset xmlns="http://www.sitemaps.org/schemas/sitemap/0.9">
+  <url>
+    <loc>${escapeHtml(origin)}/</loc>
+    <changefreq>weekly</changefreq>
+    <priority>1.0</priority>
+  </url>
+  <url>
+    <loc>${escapeHtml(origin)}/projects</loc>
+    <changefreq>weekly</changefreq>
+    <priority>0.9</priority>
+  </url>${projectUrls}
+</urlset>`;
 };
 
 export default renderHome;

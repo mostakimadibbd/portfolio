@@ -1,4 +1,5 @@
 import 'dotenv/config';
+import { fileURLToPath } from 'node:url';
 
 const toList = (value, fallback = []) =>
   value
@@ -19,6 +20,9 @@ export const config = {
   env,
   isProd: env === 'production',
   isTest: env === 'test',
+  isServerless:
+    process.env.SERVERLESS === 'true' ||
+    Boolean(process.env.VERCEL || process.env.AWS_LAMBDA_FUNCTION_NAME || process.env.FUNCTIONS_WORKER_RUNTIME),
   port: toInt(process.env.PORT, 3000),
   host: process.env.HOST ?? '0.0.0.0',
   siteUrl: process.env.SITE_URL ?? 'http://localhost:3000',
@@ -45,7 +49,8 @@ export const config = {
   },
 
   storage: {
-    messagesFile: process.env.MESSAGES_FILE ?? new URL('../../var/messages.json', import.meta.url).pathname,
+    messagesFile:
+      process.env.MESSAGES_FILE ?? fileURLToPath(new URL('../../var/messages.json', import.meta.url)),
     maxMessages: toInt(process.env.MAX_STORED_MESSAGES, 500),
   },
 };

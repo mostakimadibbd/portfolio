@@ -25,15 +25,6 @@
   <script type="application/ld+json" id="jsonld-webpage">{{JSONLD_WEBPAGE}}</script>
   <link rel="preload" href="/css/main.css" as="style">
   <link rel="stylesheet" href="/css/main.css">
-  <script>
-    (function () {
-      try {
-        var stored = localStorage.getItem('ma-theme');
-        var system = window.matchMedia('(prefers-color-scheme: dark)').matches ? 'dark' : 'light';
-        document.documentElement.setAttribute('data-theme', stored || system);
-      } catch (e) {}
-    })();
-  </script>
 </head>
 <body>
   <a class="skip-link" href="#main">Skip to main content</a>
@@ -94,9 +85,7 @@
             <span class="hero-name">{{PROFILE_NAME}}</span>
           </h1>
 
-          <p class="hero-role">
-            <span class="role-text" id="role-rotator">{{PROFILE_ROLE}} &amp; {{PROFILE_SECONDARY_ROLE}}</span>
-          </p>
+          <p class="hero-role">{{PROFILE_ROLE}} <span aria-hidden="true">/</span> {{PROFILE_SECONDARY_ROLE}}</p>
 
           <p class="hero-summary">{{PROFILE_SUMMARY}}</p>
 
@@ -278,6 +267,7 @@
         </div>
 
         <p class="empty-state" id="empty-state" hidden>No projects match that filter. Try a different tag or clear the search.</p>
+        <p class="project-more"><a class="text-link" href="/projects">Browse all projects <span aria-hidden="true">→</span></a></p>
       </div>
     </section>
 
@@ -430,7 +420,7 @@
       </nav>
 
       <p class="footer-note">
-        © <span id="current-year">2026</span> {{PROFILE_NAME}}. Built with a small Express API and zero client frameworks.
+        © <span id="current-year">2026</span> {{PROFILE_NAME}} · Made in Dhaka.
       </p>
     </div>
   </footer>

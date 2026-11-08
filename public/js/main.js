@@ -19,7 +19,14 @@ const initTheme = () => {
     toggle.setAttribute('aria-label', theme === 'dark' ? 'Switch to light theme' : 'Switch to dark theme');
   };
 
-  apply(document.documentElement.getAttribute('data-theme') || 'light');
+  let storedTheme = null;
+  try {
+    storedTheme = localStorage.getItem('ma-theme');
+  } catch {
+    /* storage unavailable — follow the system preference */
+  }
+  const systemTheme = window.matchMedia('(prefers-color-scheme: dark)').matches ? 'dark' : 'light';
+  apply(storedTheme || systemTheme);
 
   toggle.addEventListener('click', () => {
     const next = document.documentElement.getAttribute('data-theme') === 'dark' ? 'light' : 'dark';
@@ -71,14 +78,18 @@ const initNavigation = () => {
     if (event.key === 'Escape') closeMenu();
   });
 
+  let scrollFrame = 0;
   const onScroll = () => {
-    const scrolled = window.scrollY > 12;
-    header?.classList.toggle('is-scrolled', scrolled);
+    if (scrollFrame) return;
+    scrollFrame = requestAnimationFrame(() => {
+      scrollFrame = 0;
+      header?.classList.toggle('is-scrolled', window.scrollY > 12);
 
-    if (progress) {
-      const max = document.documentElement.scrollHeight - window.innerHeight;
-      progress.style.width = `${max > 0 ? (window.scrollY / max) * 100 : 0}%`;
-    }
+      if (progress) {
+        const max = document.documentElement.scrollHeight - window.innerHeight;
+        progress.style.transform = `scaleX(${max > 0 ? window.scrollY / max : 0})`;
+      }
+    });
   };
 
   onScroll();
@@ -196,50 +207,6 @@ const initCounters = () => {
   );
 
   counters.forEach((counter) => observer.observe(counter));
-};
-
-/* ---------------------------------------------------------- role rotator */
-
-const initRoleRotator = () => {
-  const rotator = $('#role-rotator');
-  if (!rotator) return;
-
-  const roles = [
-    'AI & ML Engineer',
-    'Full-Stack Developer',
-    'MLOps & Platform Engineer',
-    'Applied Researcher',
-    'Data-Driven Problem Solver',
-  ];
-
-  // With reduced motion the server-rendered role stays put.
-  if (prefersReducedMotion()) return;
-
-  let index = 0;
-  let timer;
-
-  const cycle = () => {
-    rotator.classList.add('is-swapping');
-    window.setTimeout(() => {
-      index = (index + 1) % roles.length;
-      rotator.textContent = roles[index];
-      rotator.classList.remove('is-swapping');
-    }, 320);
-  };
-
-  const start = () => {
-    timer = window.setInterval(cycle, 3600);
-  };
-
-  start();
-
-  document.addEventListener('visibilitychange', () => {
-    if (document.hidden) {
-      window.clearInterval(timer);
-    } else {
-      start();
-    }
-  });
 };
 
 /* --------------------------------------------------------------- projects */
@@ -501,7 +468,6 @@ const boot = () => {
   initScrollSpy();
   initReveals();
   initCounters();
-  initRoleRotator();
   initProjectFilters();
   initContactForm();
   initBackToTop();
