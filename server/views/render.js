@@ -1,4 +1,4 @@
-import { readFile } from 'node:fs/promises';
+import { readFile, readdir, stat } from 'node:fs/promises';
 import path from 'node:path';
 import { fileURLToPath } from 'node:url';
 import profile from '../data/profile.js';
@@ -13,6 +13,9 @@ const templatePath = path.join(__dirname, 'home.template.html');
 const projectsTemplatePath = path.join(__dirname, 'projects.template.html');
 const projectTemplatePath = path.join(__dirname, 'project.template.html');
 const resumeTemplatePath = path.join(__dirname, 'resume.template.html');
+const siteTemplatePath = path.join(__dirname, 'site.template.html');
+const writingDirectory = path.resolve(__dirname, '../../content/writing');
+const siteOrigin = config.siteUrl.replace(/\/$/, '');
 
 /* ------------------------------------------------------------------ utils */
 
@@ -87,6 +90,19 @@ const renderSkillGroups = () =>
             </ul>
           </header>
         </article>`,
+    )
+    .join('');
+
+const renderResumeSkills = () =>
+  skills
+    .map(
+      (group) => `
+        <div class="resume-skill-group">
+          <h3>${escapeHtml(group.title)}</h3>
+          <ul class="resume-skill-list">
+            ${group.items.map((item) => `<li>${escapeHtml(item)}</li>`).join('')}
+          </ul>
+        </div>`,
     )
     .join('');
 
@@ -181,9 +197,65 @@ const buildWebPageSchema = (title, description, pathname) => ({
 
 const jsonLd = (value) => JSON.stringify(value).replace(/</g, '\\u003C');
 
+const renderBreadcrumbSchema = (items) => ({
+  '@context': 'https://schema.org',
+  '@type': 'BreadcrumbList',
+  itemListElement: items.map((item, index) => ({
+    '@type': 'ListItem',
+    position: index + 1,
+    name: item.name,
+    item: absoluteUrl(item.path),
+  })),
+});
+
+const renderSitePage = async ({ title, description, pathname, content, type = 'website', schema = [] }) => {
+  const template = await readFile(siteTemplatePath, 'utf8');
+  const accents = [
+    ['Xyro', '#e744cb'],
+    ['Terracotta', '#b45335'],
+    ['Ocean', '#176b87'],
+    ['Forest', '#35735b'],
+    ['Amber', '#a7620a'],
+    ['Rose', '#b83f64'],
+    ['Indigo', '#5949be'],
+    ['Graphite', '#59636a'],
+  ];
+  const replacements = {
+    TITLE: escapeHtml(title),
+    DESCRIPTION: escapeHtml(description),
+    CANONICAL: escapeHtml(absoluteUrl(pathname)),
+    OG_TYPE: escapeHtml(type),
+    OG_IMAGE: escapeHtml(absoluteUrl('/assets/og-image.svg')),
+    STRUCTURED_DATA: schema
+      .map((item) => `<script type="application/ld+json" nonce="{{CSP_NONCE}}">${jsonLd(item)}</script>`)
+      .join('\n  '),
+    ACCENT_PRESETS: accents
+      .map(
+        ([name, color]) =>
+          `<button class="accent-swatch" type="button" data-accent="${color}" aria-label="${name}" title="${name}" style="--swatch:${color}"></button>`,
+      )
+      .join(''),
+    CONTENT: content,
+    YEAR: String(new Date().getFullYear()),
+  };
+  return Object.entries(replacements).reduce(
+    (html, [key, value]) => html.replaceAll(`{{${key}}}`, value),
+    template,
+  );
+};
+
+const renderPageSchema = (title, description, pathname) => ({
+  '@context': 'https://schema.org',
+  '@type': 'WebPage',
+  name: title,
+  description,
+  url: absoluteUrl(pathname),
+  about: { '@type': 'Person', name: profile.name },
+});
+
 /* ----------------------------------------------------------------- render */
 
-export const renderHome = async () => {
+export const renderHome = async (githubSnapshot = null) => {
   const template = await readFile(templatePath, 'utf8');
 
   const replacements = {
@@ -203,6 +275,219 @@ export const renderHome = async () => {
     JSONLD_PERSON: jsonLd(buildPersonSchema()),
     JSONLD_WEBSITE: jsonLd(buildWebSiteSchema()),
     JSONLD_WEBPAGE: jsonLd(buildWebPageSchema(`${profile.name} — ${profile.role}`, profile.summary, '/')),
+    CURRENT_YEAR: String(new Date().getFullYear()),
+    GITHUB_SNASHOT: githubSnapshot
+      ? `
+          <div class="github-snapshot">
+            <h3>Recent GitHub Activity</h3>
+            <ul>
+              <li><strong>⭐ Stars:</strong> ${githubSnapshot.stars || 'N/A'}</li>
+              <li><strong>📂 Repos:</strong> ${githubSnapshot.repos || 'N/A'}</li>
+              <li><strong>🏆 Contributions:</strong> ${githubSnapshot.contributions || 'N/A'}</li>
+            </ul>
+          </div>`
+      : '',
+  };
+
+  return Object.entries(replacements).reduce(
+    (html, [key, value]) => html.replaceAll(`{{${key}}}`, value),
+    template,
+  );
+};
+
+export const renderAboutPage = async () => {
+  const template = await readFile(path.join(__dirname, 'about.template.html'), 'utf8');
+  const replacements = {
+    PROFILE_NAME: escapeHtml(profile.name),
+    PROFILE_INITIALS: escapeHtml(profile.initials),
+    PROFILE_ROLE: escapeHtml(profile.role),
+    PROFILE_SUMMARY: escapeHtml(profile.summary),
+    PROFILE_LOCATION: escapeHtml(profile.location),
+    PROFILE_TIMEZONE: escapeHtml(profile.timezone),
+    PROFILE_EMAIL: escapeHtml(profile.email),
+    PROFILE_RESUME_URL: escapeHtml(profile.resumeUrl),
+    PROFILE_GITHUB: escapeHtml(profile.github),
+    SKILL_GROUPS: renderSkillGroups(),
+    CURRENT_YEAR: String(new Date().getFullYear()),
+  };
+
+  return Object.entries(replacements).reduce(
+    (html, [key, value]) => html.replaceAll(`{{${key}}}`, value),
+    template,
+  );
+};
+
+export const renderUsesPage = async () => {
+  const template = await readFile(path.join(__dirname, 'uses.template.html'), 'utf8');
+  const replacements = {
+    PROFILE_NAME: escapeHtml(profile.name),
+    PROFILE_INITIALS: escapeHtml(profile.initials),
+    PROFILE_ROLE: escapeHtml(profile.role),
+    PROFILE_SUMMARY: escapeHtml(profile.summary),
+    SKILLS: renderSkillGroups(),
+    CURRENT_YEAR: String(new Date().getFullYear()),
+  };
+
+  return Object.entries(replacements).reduce(
+    (html, [key, value]) => html.replaceAll(`{{${key}}}`, value),
+    template,
+  );
+};
+
+export const renderNowPage = async () => {
+  const template = await readFile(path.join(__dirname, 'now.template.html'), 'utf8');
+  const replacements = {
+    PROFILE_NAME: escapeHtml(profile.name),
+    PROFILE_INITIALS: escapeHtml(profile.initials),
+    PROFILE_ROLE: escapeHtml(profile.role),
+    PROFILE_SUMMARY: escapeHtml(profile.summary),
+    CURRENT_YEAR: String(new Date().getFullYear()),
+  };
+
+  return Object.entries(replacements).reduce(
+    (html, [key, value]) => html.replaceAll(`{{${key}}}`, value),
+    template,
+  );
+};
+
+export const renderWritingPage = async () => {
+  const template = await readFile(path.join(__dirname, 'writing.template.html'), 'utf8');
+  const replacements = {
+    PROFILE_NAME: escapeHtml(profile.name),
+    PROFILE_INITIALS: escapeHtml(profile.initials),
+    PROFILE_ROLE: escapeHtml(profile.role),
+    PROFILE_SUMMARY: escapeHtml(profile.summary),
+    CURRENT_YEAR: String(new Date().getFullYear()),
+  };
+
+  return Object.entries(replacements).reduce(
+    (html, [key, value]) => html.replaceAll(`{{${key}}}`, value),
+    template,
+  );
+};
+
+export const renderWritingPost = async (slug) => {
+  const template = await readFile(path.join(__dirname, 'writing-post.template.html'), 'utf8');
+  const replacements = {
+    PROFILE_NAME: escapeHtml(profile.name),
+    PROFILE_INITIALS: escapeHtml(profile.initials),
+    PROFILE_ROLE: escapeHtml(profile.role),
+    PROFILE_SUMMARY: escapeHtml(profile.summary),
+    POST_TITLE: escapeHtml(`Post: ${slug}`),
+    POST_CONTENT: '<p>Post content would go here</p>',
+    CURRENT_YEAR: String(new Date().getFullYear()),
+  };
+
+  return Object.entries(replacements).reduce(
+    (html, [key, value]) => html.replaceAll(`{{${key}}}`, value),
+    template,
+  );
+};
+
+export const renderContactPage = async () => {
+  const template = await readFile(path.join(__dirname, 'contact.template.html'), 'utf8');
+  const replacements = {
+    PROFILE_NAME: escapeHtml(profile.name),
+    PROFILE_INITIALS: escapeHtml(profile.initials),
+    PROFILE_ROLE: escapeHtml(profile.role),
+    PROFILE_SUMMARY: escapeHtml(profile.summary),
+    PROFILE_LOCATION: escapeHtml(profile.location),
+    PROFILE_TIMEZONE: escapeHtml(profile.timezone),
+    PROFILE_EMAIL: escapeHtml(profile.email),
+    PROFILE_RESUME_URL: escapeHtml(profile.resumeUrl),
+    PROFILE_GITHUB: escapeHtml(profile.github),
+    CURRENT_YEAR: String(new Date().getFullYear()),
+  };
+
+  return Object.entries(replacements).reduce(
+    (html, [key, value]) => html.replaceAll(`{{${key}}}`, value),
+    template,
+  );
+};
+
+export const renderResumePage = async () => {
+  const template = await readFile(resumeTemplatePath, 'utf8');
+  const replacements = {
+    PROFILE_NAME: escapeHtml(profile.name),
+    PROFILE_INITIALS: escapeHtml(profile.initials),
+    PROFILE_ROLE: escapeHtml(profile.role),
+    PROFILE_SUMMARY: escapeHtml(profile.summary),
+    PROFILE_LOCATION: escapeHtml(profile.location),
+    PROFILE_EMAIL: escapeHtml(profile.email),
+    PROFILE_GITHUB: escapeHtml(profile.github),
+    RESUME_SKILLS: renderResumeSkills(),
+    PROJECTS_LIST: projects
+      .map(
+        (project) => `
+          <article class="resume-project">
+            <h3>${escapeHtml(project.title)}</h3>
+            <p class="resume-project-meta">${escapeHtml(project.status)}</p>
+            <p>${escapeHtml(project.summary)}</p>
+            <ul>
+              ${(project.decisions ?? []).map((decision) => `<li>${escapeHtml(decision)}</li>`).join('')}
+            </ul>
+          </article>`,
+      )
+      .join(''),
+    CURRENT_YEAR: String(new Date().getFullYear()),
+  };
+
+  return Object.entries(replacements).reduce(
+    (html, [key, value]) => html.replaceAll(`{{${key}}}`, value),
+    template,
+  );
+};
+
+export const renderRss = () => {
+  const origin = config.siteUrl.replace(/\/$/, '');
+  const projectUrls = projects
+    .map(
+      (project) => `
+<item>
+<guid>${escapeHtml(`${origin}/projects/${encodeURIComponent(project.slug)}`)}</guid>
+<title>${escapeHtml(project.title)}</title>
+<description>${escapeHtml(project.summary)}</description>
+<pubDate>${new Date().toUTCString()}</pubDate>
+</item>`,
+    )
+    .join('');
+
+  return `<?xml version="1.0" encoding="UTF-8"?>
+<rss version="2.0">
+<channel>
+  <title>Mostakim Adib — Portfolio</title>
+  <link>${escapeHtml(origin)}/</link>
+  <description>Selected engineering and product projects</description>
+  <pubDate>${new Date().toUTCString()}</pubDate>
+${projectUrls}
+</channel>
+</rss>`;
+};
+
+export const renderNotFound = async () => {
+  const template = await readFile(path.join(__dirname, '404.template.html'), 'utf8');
+  const replacements = {
+    PROFILE_NAME: escapeHtml(profile.name),
+    PROFILE_INITIALS: escapeHtml(profile.initials),
+    PROFILE_ROLE: escapeHtml(profile.role),
+    PROFILE_SUMMARY: escapeHtml(profile.summary),
+    CURRENT_YEAR: String(new Date().getFullYear()),
+  };
+
+  return Object.entries(replacements).reduce(
+    (html, [key, value]) => html.replaceAll(`{{${key}}}`, value),
+    template,
+  );
+};
+
+export const renderServerError = async (error) => {
+  const template = await readFile(path.join(__dirname, '500.template.html'), 'utf8');
+  const replacements = {
+    PROFILE_NAME: escapeHtml(profile.name),
+    PROFILE_INITIALS: escapeHtml(profile.initials),
+    PROFILE_ROLE: escapeHtml(profile.role),
+    PROFILE_SUMMARY: escapeHtml(profile.summary),
+    ERROR_MESSAGE: escapeHtml(error.message || 'Internal Server Error'),
     CURRENT_YEAR: String(new Date().getFullYear()),
   };
 
@@ -326,7 +611,7 @@ export const renderResume = async () => {
     PROFILE_LOCATION: escapeHtml(profile.location),
     PROFILE_EMAIL: escapeHtml(profile.email),
     PROFILE_GITHUB: escapeHtml(profile.github),
-    SKILL_GROUPS: renderSkillGroups(),
+    RESUME_SKILLS: renderResumeSkills(),
     PROJECTS_LIST: projects
       .map(
         (project) => `
@@ -349,4 +634,20 @@ export const renderResume = async () => {
   );
 };
 
-export default renderHome;
+export default {
+  renderHome,
+  renderProjectsPage,
+  renderProjectPage,
+  renderSitemap,
+  renderResume,
+  renderAboutPage,
+  renderUsesPage,
+  renderNowPage,
+  renderWritingPage,
+  renderWritingPost,
+  renderContactPage,
+  renderResumePage,
+  renderRss,
+  renderNotFound,
+  renderServerError,
+};

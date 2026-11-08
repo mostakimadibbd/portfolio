@@ -47,7 +47,7 @@ export const securityMiddleware = [
     origin: (origin, callback) => {
       const allowed = config.security.corsOrigins;
       if (!origin || allowed.includes('*') || allowed.includes(origin)) return callback(null, true);
-      return callback(new Error('Origin not allowed by CORS'));
+      return callback(null, false);
     },
     methods: ['GET', 'POST', 'OPTIONS'],
     allowedHeaders: ['Content-Type'],
