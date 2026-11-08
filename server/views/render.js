@@ -234,6 +234,28 @@ const renderAccentPresets = () =>
     )
     .join('');
 
+const renderInteractionControls = () => `
+  <button class="customise-trigger" id="customise-open" type="button" aria-haspopup="dialog" aria-controls="theme-panel">Customise</button>
+  <section class="theme-panel" id="theme-panel" role="dialog" aria-modal="true" aria-labelledby="theme-title" hidden>
+    <div class="theme-panel-head"><h2 id="theme-title">Make it yours</h2><button class="icon-btn" id="customise-close" type="button" aria-label="Close customiser">×</button></div>
+    <label class="theme-field">Mode<select id="theme-mode"><option value="system">System</option><option value="light">Light</option><option value="dark">Dark</option></select></label>
+    <fieldset class="theme-field"><legend>Accent</legend><div class="accent-presets" id="accent-presets">${renderAccentPresets()}</div></fieldset>
+    <label class="theme-field">Custom accent<input id="accent-custom" type="color" value="#b45335"></label>
+    <fieldset class="theme-field"><legend>Corner style</legend><div class="choice-row"><label><input type="radio" name="radius" value="sharp"> Sharp</label><label><input type="radio" name="radius" value="soft" checked> Soft</label><label><input type="radio" name="radius" value="round"> Round</label></div></fieldset>
+    <fieldset class="theme-field"><legend>Type</legend><div class="choice-row"><label><input type="radio" name="font" value="sans" checked> Sans</label><label><input type="radio" name="font" value="mono"> Mono-leaning</label></div></fieldset>
+    <fieldset class="theme-field"><legend>Motion</legend><div class="choice-row"><label><input type="radio" name="motion" value="full" checked> Full</label><label><input type="radio" name="motion" value="reduced"> Reduced</label></div></fieldset>
+    <div class="theme-panel-actions"><button class="btn btn-ghost btn-sm" id="theme-reset" type="button">Reset</button><button class="btn btn-ghost btn-sm" id="theme-share" type="button">Copy theme link</button></div>
+    <p class="theme-status" id="theme-status" role="status" aria-live="polite"></p>
+  </section>
+  <dialog class="command-palette" id="command-palette" aria-labelledby="palette-title">
+    <h2 class="sr-only" id="palette-title">Command menu</h2><label class="sr-only" for="palette-search">Search pages and actions</label>
+    <input id="palette-search" type="search" placeholder="Jump to a page or action…" autocomplete="off"><ul id="palette-results"></ul>
+    <p class="palette-hint">↑ ↓ to navigate · Enter to select · Esc to close</p>
+  </dialog>`;
+
+const injectInteractionControls = (html) =>
+  html.replace('</body>', `${renderInteractionControls()}\n</body>`);
+
 const renderSitePage = async ({ title, description, pathname, content, type = 'website', schema = [] }) => {
   const template = await readFile(siteTemplatePath, 'utf8');
   const replacements = {
