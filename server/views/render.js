@@ -326,207 +326,178 @@ export const renderHome = async (githubSnapshot = null) => {
   );
 };
 
-export const renderAboutPage = async () => {
-  const template = await readFile(path.join(__dirname, 'about.template.html'), 'utf8');
-  const replacements = {
-    PROFILE_NAME: escapeHtml(profile.name),
-    PROFILE_INITIALS: escapeHtml(profile.initials),
-    PROFILE_ROLE: escapeHtml(profile.role),
-    PROFILE_SUMMARY: escapeHtml(profile.summary),
-    PROFILE_LOCATION: escapeHtml(profile.location),
-    PROFILE_TIMEZONE: escapeHtml(profile.timezone),
-    PROFILE_EMAIL: escapeHtml(profile.email),
-    PROFILE_RESUME_URL: escapeHtml(profile.resumeUrl),
-    PROFILE_GITHUB: escapeHtml(profile.github),
-    SKILL_GROUPS: renderSkillGroups(),
-    CURRENT_YEAR: String(new Date().getFullYear()),
-  };
+const baseSchema = () => [
+  buildPersonSchema(),
+  buildWebSiteSchema(),
+];
 
-  return Object.entries(replacements).reduce(
-    (html, [key, value]) => html.replaceAll(`{{${key}}}`, value),
-    template,
-  );
+const renderStaticPage = (title, description, pathname, content, type = 'website', extraSchema = []) =>
+  renderSitePage({
+    title: `${title} — ${profile.name}`,
+    description,
+    pathname,
+    type,
+    content: `<section class="page-intro section"><div class="container"><p class="breadcrumbs"><a href="/">Home</a><span aria-hidden="true">/</span>${escapeHtml(title)}</p><p class="eyebrow">${escapeHtml(profile.name)}</p><h1>${escapeHtml(title)}.</h1></div></section>${content}`,
+    schema: [
+      ...baseSchema(),
+      renderPageSchema(title, description, pathname),
+      renderBreadcrumbSchema([
+        { name: 'Home', path: '/' },
+        { name: title, path: pathname },
+      ]),
+      ...extraSchema,
+    ],
+  });
+
+export const renderAboutPage = async () => {
+  const content = `<section class="section"><div class="container reading-width"><p class="section-lead">${escapeHtml(profile.summary)} The work shown here is centered on products I am building as an independent developer and founder.</p><h2>Building the Xyro products</h2><p>XyroSocial is a live social platform and XyroBase is the product home for the Xyro suite. XyroConnect and XyroBrowse are in development; XyroDrive is planned.</p><h2>How I work</h2><p>I focus on the product details, system boundaries and safe defaults that help software stay useful as it grows.</p><h2>A small terminal</h2><p>Try <code>help</code>, <code>projects</code>, <code>skills</code>, <code>contact</code> or <code>theme #hex</code>.</p><div class="terminal" id="terminal"><p id="terminal-output" class="terminal-output" aria-live="polite">Type help to see what this terminal can do.</p><form id="terminal-form"><label class="sr-only" for="terminal-input">Terminal command</label><span aria-hidden="true">&gt;</span><input id="terminal-input" type="text" autocomplete="off" spellcheck="false"><button class="sr-only" type="submit">Run command</button></form></div></div></section>`;
+  return renderStaticPage('About', profile.summary, '/about', content);
 };
 
 export const renderUsesPage = async () => {
-  const template = await readFile(path.join(__dirname, 'uses.template.html'), 'utf8');
-  const replacements = {
-    PROFILE_NAME: escapeHtml(profile.name),
-    PROFILE_INITIALS: escapeHtml(profile.initials),
-    PROFILE_ROLE: escapeHtml(profile.role),
-    PROFILE_SUMMARY: escapeHtml(profile.summary),
-    SKILLS: renderSkillGroups(),
-    CURRENT_YEAR: String(new Date().getFullYear()),
-  };
-
-  return Object.entries(replacements).reduce(
-    (html, [key, value]) => html.replaceAll(`{{${key}}}`, value),
-    template,
-  );
+  const content = `<section class="section section-alt"><div class="container reading-width"><p class="section-lead">Technologies used in the public projects listed here. Hardware and personal setup details are not published.</p><div class="skills-grid">${renderSkillGroups()}</div></div></section>`;
+  return renderStaticPage('Uses', 'Technologies used in Mostakim Adib’s public projects.', '/uses', content);
 };
 
 export const renderNowPage = async () => {
-  const template = await readFile(path.join(__dirname, 'now.template.html'), 'utf8');
-  const replacements = {
-    PROFILE_NAME: escapeHtml(profile.name),
-    PROFILE_INITIALS: escapeHtml(profile.initials),
-    PROFILE_ROLE: escapeHtml(profile.role),
-    PROFILE_SUMMARY: escapeHtml(profile.summary),
-    CURRENT_YEAR: String(new Date().getFullYear()),
-  };
-
-  return Object.entries(replacements).reduce(
-    (html, [key, value]) => html.replaceAll(`{{${key}}}`, value),
-    template,
+  const planned = projects.flatMap((project) =>
+    (project.products ?? [])
+      .filter((product) => ['In development', 'Planned'].includes(product.status))
+      .map(
+        (product) =>
+          `<li><strong>${escapeHtml(product.name)}</strong> — ${escapeHtml(product.status)}${product.description ? `: ${escapeHtml(product.description)}` : ''}</li>`,
+      ),
   );
+  const content = `<section class="section"><div class="container reading-width"><p class="section-lead">A snapshot of product work with a public status supplied for this portfolio.</p><h2>In development or planned</h2><ul class="case-highlights">${planned.join('')}</ul><p class="muted">No personal updates beyond the verified product statuses are included.</p></div></section>`;
+  return renderStaticPage('Now', 'A snapshot of public product work by Mostakim Adib.', '/now', content);
 };
 
-export const renderWritingPage = async () => {
-  const template = await readFile(path.join(__dirname, 'writing.template.html'), 'utf8');
-  const replacements = {
-    PROFILE_NAME: escapeHtml(profile.name),
-    PROFILE_INITIALS: escapeHtml(profile.initials),
-    PROFILE_ROLE: escapeHtml(profile.role),
-    PROFILE_SUMMARY: escapeHtml(profile.summary),
-    CURRENT_YEAR: String(new Date().getFullYear()),
-  };
-
-  return Object.entries(replacements).reduce(
-    (html, [key, value]) => html.replaceAll(`{{${key}}}`, value),
-    template,
+const parseWritingFile = (source, slug) => {
+  const match = source.match(/^---\r?\n([\s\S]*?)\r?\n---\r?\n?([\s\S]*)$/);
+  if (!match) return null;
+  const metadata = Object.fromEntries(
+    match[1]
+      .split(/\r?\n/)
+      .map((line) => line.match(/^([a-zA-Z]+):\s*(.*?)\s*$/))
+      .filter(Boolean)
+      .map(([, key, value]) => [key, value.replace(/^["']|["']$/g, '')]),
   );
+  const date = metadata.date;
+  const parsedDate = date && /^\d{4}-\d{2}-\d{2}$/.test(date) ? new Date(`${date}T00:00:00Z`) : null;
+  if (!metadata.title || !parsedDate || parsedDate.toISOString().slice(0, 10) !== date || metadata.draft === 'true') {
+    return null;
+  }
+  return { slug, title: metadata.title, date, description: metadata.description || metadata.title, body: match[2] };
+};
+
+const getWritingPosts = async () => {
+  let names;
+  try {
+    names = await readdir(writingDirectory);
+  } catch (error) {
+    if (error.code === 'ENOENT') return [];
+    throw error;
+  }
+  const posts = await Promise.all(
+    names
+      .filter((name) => name.endsWith('.md'))
+      .map(async (name) =>
+        parseWritingFile(await readFile(path.join(writingDirectory, name), 'utf8'), name.slice(0, -3)),
+      ),
+  );
+  return posts.filter(Boolean).sort((left, right) => right.date.localeCompare(left.date));
+};
+
+const renderMarkdown = (markdown) =>
+  markdown
+    .trim()
+    .split(/\n{2,}/)
+    .map((block) => {
+      const heading = block.match(/^(#{1,3})\s+(.+)$/);
+      if (heading) {
+        const level = heading[1].length + 1;
+        return `<h${level}>${escapeHtml(heading[2])}</h${level}>`;
+      }
+      if (block.split('\n').every((line) => /^-\s+/.test(line))) {
+        return `<ul>${block
+          .split('\n')
+          .map((line) => `<li>${escapeHtml(line.replace(/^-\s+/, ''))}</li>`)
+          .join('')}</ul>`;
+      }
+      return `<p>${escapeHtml(block).replace(/\n/g, '<br>')}</p>`;
+    })
+    .join('');
+
+export const renderWritingPage = async () => {
+  const posts = await getWritingPosts();
+  const list = posts.length
+    ? `<ul class="writing-list">${posts
+        .map(
+          (post) =>
+            `<li><time datetime="${escapeHtml(post.date)}">${escapeHtml(post.date)}</time><a href="/writing/${encodeURIComponent(post.slug)}">${escapeHtml(post.title)}</a></li>`,
+        )
+        .join('')}</ul>`
+    : '<p class="section-lead">No articles published yet.</p>';
+  const content = `<section class="section"><div class="container reading-width">${list}<p><a class="text-link" href="/rss.xml">RSS feed <span aria-hidden="true">↗</span></a></p></div></section>`;
+  return renderStaticPage('Writing', 'Notes and articles by Mostakim Adib.', '/writing', content);
 };
 
 export const renderWritingPost = async (slug) => {
-  const template = await readFile(path.join(__dirname, 'writing-post.template.html'), 'utf8');
-  const replacements = {
-    PROFILE_NAME: escapeHtml(profile.name),
-    PROFILE_INITIALS: escapeHtml(profile.initials),
-    PROFILE_ROLE: escapeHtml(profile.role),
-    PROFILE_SUMMARY: escapeHtml(profile.summary),
-    POST_TITLE: escapeHtml(`Post: ${slug}`),
-    POST_CONTENT: '<p>Post content would go here</p>',
-    CURRENT_YEAR: String(new Date().getFullYear()),
-  };
-
-  return Object.entries(replacements).reduce(
-    (html, [key, value]) => html.replaceAll(`{{${key}}}`, value),
-    template,
-  );
+  const post = (await getWritingPosts()).find((item) => item.slug === slug);
+  if (!post) return null;
+  const content = `<article class="section"><div class="container reading-width"><p class="breadcrumbs"><a href="/">Home</a><span aria-hidden="true">/</span><a href="/writing">Writing</a><span aria-hidden="true">/</span>${escapeHtml(post.title)}</p><p class="eyebrow"><time datetime="${escapeHtml(post.date)}">${escapeHtml(post.date)}</time></p><h1>${escapeHtml(post.title)}</h1><div class="prose">${renderMarkdown(post.body)}</div></div></article>`;
+  return renderSitePage({
+    title: `${post.title} — ${profile.name}`,
+    description: post.description,
+    pathname: `/writing/${encodeURIComponent(post.slug)}`,
+    type: 'article',
+    content,
+    schema: [
+      ...baseSchema(),
+      {
+        '@context': 'https://schema.org',
+        '@type': 'BlogPosting',
+        headline: post.title,
+        datePublished: post.date,
+        description: post.description,
+        author: { '@type': 'Person', name: profile.name },
+        url: absoluteUrl(`/writing/${encodeURIComponent(post.slug)}`),
+      },
+    ],
+  });
 };
 
 export const renderContactPage = async () => {
-  const template = await readFile(path.join(__dirname, 'contact.template.html'), 'utf8');
-  const replacements = {
-    PROFILE_NAME: escapeHtml(profile.name),
-    PROFILE_INITIALS: escapeHtml(profile.initials),
-    PROFILE_ROLE: escapeHtml(profile.role),
-    PROFILE_SUMMARY: escapeHtml(profile.summary),
-    PROFILE_LOCATION: escapeHtml(profile.location),
-    PROFILE_TIMEZONE: escapeHtml(profile.timezone),
-    PROFILE_EMAIL: escapeHtml(profile.email),
-    PROFILE_RESUME_URL: escapeHtml(profile.resumeUrl),
-    PROFILE_GITHUB: escapeHtml(profile.github),
-    CURRENT_YEAR: String(new Date().getFullYear()),
-  };
-
-  return Object.entries(replacements).reduce(
-    (html, [key, value]) => html.replaceAll(`{{${key}}}`, value),
-    template,
-  );
+  const content = `<section class="section section-alt"><div class="container contact-grid"><div><p class="section-lead">The form is the best way to reach me. You can also email <a href="mailto:${escapeHtml(profile.email)}">${escapeHtml(profile.email)}</a>.</p><p>Based in ${escapeHtml(profile.location)}.</p></div><form class="contact-form" id="contact-form" novalidate><div class="field"><label for="cf-name">Name</label><input id="cf-name" name="name" autocomplete="name" required minlength="2" maxlength="80"><p class="field-error" data-error-for="name" role="alert"></p></div><div class="field"><label for="cf-email">Your email</label><input id="cf-email" name="email" type="email" autocomplete="email" required maxlength="120"><p class="field-error" data-error-for="email" role="alert"></p></div><div class="field"><label for="cf-subject">Subject <span class="optional">(optional)</span></label><input id="cf-subject" name="subject" maxlength="140"><p class="field-error" data-error-for="subject" role="alert"></p></div><div class="field"><label for="cf-message">Message</label><textarea id="cf-message" name="message" rows="6" required minlength="10" maxlength="4000"></textarea><p class="field-error" data-error-for="message" role="alert"></p></div><input type="hidden" name="formStartedAt" value="${Date.now()}"><div class="honeypot" aria-hidden="true"><label for="cf-company">Company</label><input id="cf-company" name="company" tabindex="-1" autocomplete="off"></div><button class="btn btn-primary" id="cf-submit" type="submit">Send message</button><p class="form-status" id="form-status" role="status" aria-live="polite"></p></form></div></section>`;
+  return renderStaticPage('Contact', 'Contact Mostakim Adib about public projects and product work.', '/contact', content);
 };
 
 export const renderResumePage = async () => {
-  const template = await readFile(resumeTemplatePath, 'utf8');
-  const replacements = {
-    PROFILE_NAME: escapeHtml(profile.name),
-    PROFILE_INITIALS: escapeHtml(profile.initials),
-    PROFILE_ROLE: escapeHtml(profile.role),
-    PROFILE_SUMMARY: escapeHtml(profile.summary),
-    PROFILE_LOCATION: escapeHtml(profile.location),
-    PROFILE_EMAIL: escapeHtml(profile.email),
-    PROFILE_GITHUB: escapeHtml(profile.github),
-    RESUME_SKILLS: renderResumeSkills(),
-    PROJECTS_LIST: projects
-      .map(
-        (project) => `
-          <article class="resume-project">
-            <h3>${escapeHtml(project.title)}</h3>
-            <p class="resume-project-meta">${escapeHtml(project.status)}</p>
-            <p>${escapeHtml(project.summary)}</p>
-            <ul>
-              ${(project.decisions ?? []).map((decision) => `<li>${escapeHtml(decision)}</li>`).join('')}
-            </ul>
-          </article>`,
-      )
-      .join(''),
-    CURRENT_YEAR: String(new Date().getFullYear()),
-  };
-
-  return Object.entries(replacements).reduce(
-    (html, [key, value]) => html.replaceAll(`{{${key}}}`, value),
-    template,
-  );
-};
-
-export const renderRss = () => {
-  const origin = config.siteUrl.replace(/\/$/, '');
-  const projectUrls = projects
+  const projectList = projects
     .map(
-      (project) => `
-<item>
-<guid>${escapeHtml(`${origin}/projects/${encodeURIComponent(project.slug)}`)}</guid>
-<title>${escapeHtml(project.title)}</title>
-<description>${escapeHtml(project.summary)}</description>
-<pubDate>${new Date().toUTCString()}</pubDate>
-</item>`,
+      (project) =>
+        `<li><strong>${escapeHtml(project.title)}</strong> — ${escapeHtml(project.summary)} <a href="${escapeHtml(absoluteUrl(`/projects/${project.slug}`))}">${escapeHtml(absoluteUrl(`/projects/${project.slug}`))}</a></li>`,
     )
     .join('');
-
-  return `<?xml version="1.0" encoding="UTF-8"?>
-<rss version="2.0">
-<channel>
-  <title>Mostakim Adib — Portfolio</title>
-  <link>${escapeHtml(origin)}/</link>
-  <description>Selected engineering and product projects</description>
-  <pubDate>${new Date().toUTCString()}</pubDate>
-${projectUrls}
-</channel>
-</rss>`;
+  const content = `<article class="section resume-page"><div class="container reading-width"><div class="resume-actions"><a class="text-link" href="/contact">Contact</a><button class="btn btn-primary" type="button" data-print>Print / Save as PDF</button></div><header class="resume-header"><h1>${escapeHtml(profile.name)}</h1><p>${escapeHtml(profile.role)}</p><p>${escapeHtml(profile.location)} · <a href="mailto:${escapeHtml(profile.email)}">${escapeHtml(profile.email)}</a> · <a href="${escapeHtml(profile.github)}">${escapeHtml(profile.github.replace('https://', ''))}</a></p></header><section><h2>Profile</h2><p>${escapeHtml(profile.summary)}</p></section><section><h2>Selected products</h2><ul>${projectList}</ul></section><section><h2>Skills</h2>${skills.map((group) => `<p><strong>${escapeHtml(group.title)}:</strong> ${escapeHtml(group.items.join(', '))}</p>`).join('')}</section></div></article>`;
+  return renderStaticPage('Résumé', `${profile.name} — ${profile.role}.`, '/resume', content);
 };
 
-export const renderNotFound = async () => {
-  const template = await readFile(path.join(__dirname, '404.template.html'), 'utf8');
-  const replacements = {
-    PROFILE_NAME: escapeHtml(profile.name),
-    PROFILE_INITIALS: escapeHtml(profile.initials),
-    PROFILE_ROLE: escapeHtml(profile.role),
-    PROFILE_SUMMARY: escapeHtml(profile.summary),
-    CURRENT_YEAR: String(new Date().getFullYear()),
-  };
-
-  return Object.entries(replacements).reduce(
-    (html, [key, value]) => html.replaceAll(`{{${key}}}`, value),
-    template,
+export const renderNotFound = async () =>
+  renderStaticPage(
+    'Page not found',
+    'The page you requested could not be found.',
+    '/404',
+    '<section class="error-page"><div class="container"><p class="eyebrow">404 / Not found</p><h2>Nothing lives here.</h2><p>The page may have moved, or the address might be off.</p><a class="btn btn-primary" href="/">Back home</a></div></section>',
   );
-};
 
-export const renderServerError = async (error) => {
-  const template = await readFile(path.join(__dirname, '500.template.html'), 'utf8');
-  const replacements = {
-    PROFILE_NAME: escapeHtml(profile.name),
-    PROFILE_INITIALS: escapeHtml(profile.initials),
-    PROFILE_ROLE: escapeHtml(profile.role),
-    PROFILE_SUMMARY: escapeHtml(profile.summary),
-    ERROR_MESSAGE: escapeHtml(error.message || 'Internal Server Error'),
-    CURRENT_YEAR: String(new Date().getFullYear()),
-  };
-
-  return Object.entries(replacements).reduce(
-    (html, [key, value]) => html.replaceAll(`{{${key}}}`, value),
-    template,
+export const renderServerError = async () =>
+  renderStaticPage(
+    'Something went wrong',
+    'The page could not be served.',
+    '/500',
+    '<section class="error-page"><div class="container"><p class="eyebrow">500 / Server error</p><h2>That did not work.</h2><p>Please try again shortly.</p><a class="btn btn-primary" href="/">Back home</a></div></section>',
   );
-};
 
 export const renderProjectsPage = async () => {
   const template = await readFile(projectsTemplatePath, 'utf8');
@@ -602,69 +573,46 @@ export const renderProjectPage = async (slug) => {
   );
 };
 
-export const renderSitemap = () => {
-  const origin = config.siteUrl.replace(/\/$/, '');
-  const projectUrls = projects
+export const renderSitemap = async () => {
+  const [profileFile, projectFile, posts] = await Promise.all([
+    stat(new URL('../data/profile.js', import.meta.url)),
+    stat(new URL('../data/projects.js', import.meta.url)),
+    getWritingPosts(),
+  ]);
+  const lastmod = new Date(Math.max(profileFile.mtimeMs, projectFile.mtimeMs)).toISOString().slice(0, 10);
+  const locations = [
+    '/',
+    '/about',
+    '/projects',
+    '/uses',
+    '/now',
+    '/writing',
+    '/contact',
+    '/resume',
+    ...projects.map((project) => `/projects/${encodeURIComponent(project.slug)}`),
+    ...posts.map((post) => `/writing/${encodeURIComponent(post.slug)}`),
+  ];
+  const urls = locations
     .map(
-      (project) => `
-  <url>
-    <loc>${escapeHtml(`${origin}/projects/${encodeURIComponent(project.slug)}`)}</loc>
-    <lastmod>${new Date().toISOString().slice(0, 10)}</lastmod>
-    <changefreq>monthly</changefreq>
-    <priority>${project.featured ? '0.8' : '0.6'}</priority>
-  </url>`,
+      (location) =>
+        `<url><loc>${escapeHtml(absoluteUrl(location))}</loc><lastmod>${lastmod}</lastmod></url>`,
     )
     .join('');
-
-  return `<?xml version="1.0" encoding="UTF-8"?>
-<urlset xmlns="http://www.sitemaps.org/schemas/sitemap/0.9">
-  <url>
-    <loc>${escapeHtml(origin)}/</loc>
-    <lastmod>${new Date().toISOString().slice(0, 10)}</lastmod>
-    <changefreq>weekly</changefreq>
-    <priority>1.0</priority>
-  </url>
-  <url>
-    <loc>${escapeHtml(`${origin}/projects`)}</loc>
-    <lastmod>${new Date().toISOString().slice(0, 10)}</lastmod>
-    <changefreq>weekly</changefreq>
-    <priority>0.9</priority>
-  </url>${projectUrls}
-</urlset>`;
+  return `<?xml version="1.0" encoding="UTF-8"?><urlset xmlns="http://www.sitemaps.org/schemas/sitemap/0.9">${urls}</urlset>`;
 };
 
-export const renderResume = async () => {
-  const template = await readFile(resumeTemplatePath, 'utf8');
-  const replacements = {
-    PROFILE_NAME: escapeHtml(profile.name),
-    PROFILE_INITIALS: escapeHtml(profile.initials),
-    PROFILE_ROLE: escapeHtml(profile.role),
-    PROFILE_SUMMARY: escapeHtml(profile.summary),
-    PROFILE_LOCATION: escapeHtml(profile.location),
-    PROFILE_EMAIL: escapeHtml(profile.email),
-    PROFILE_GITHUB: escapeHtml(profile.github),
-    RESUME_SKILLS: renderResumeSkills(),
-    PROJECTS_LIST: projects
-      .map(
-        (project) => `
-          <article class="resume-project">
-            <h3>${escapeHtml(project.title)}</h3>
-            <p class="resume-project-meta">${escapeHtml(project.status)}</p>
-            <p>${escapeHtml(project.summary)}</p>
-            <ul>
-              ${(project.decisions ?? []).map((decision) => `<li>${escapeHtml(decision)}</li>`).join('')}
-            </ul>
-          </article>`,
-      )
-      .join(''),
-    CURRENT_YEAR: String(new Date().getFullYear()),
-  };
-
-  return Object.entries(replacements).reduce(
-    (html, [key, value]) => html.replaceAll(`{{${key}}}`, value),
-    template,
-  );
+export const renderRss = async () => {
+  const posts = await getWritingPosts();
+  const items = posts
+    .map(
+      (post) =>
+        `<item><title>${escapeHtml(post.title)}</title><link>${escapeHtml(absoluteUrl(`/writing/${encodeURIComponent(post.slug)}`))}</link><guid>${escapeHtml(absoluteUrl(`/writing/${encodeURIComponent(post.slug)}`))}</guid><pubDate>${new Date(`${post.date}T00:00:00Z`).toUTCString()}</pubDate><description>${escapeHtml(post.description)}</description></item>`,
+    )
+    .join('');
+  return `<?xml version="1.0" encoding="UTF-8"?><rss version="2.0"><channel><title>${escapeHtml(profile.name)} — Writing</title><link>${escapeHtml(absoluteUrl('/writing'))}</link><description>Notes by ${escapeHtml(profile.name)}.</description>${items}</channel></rss>`;
 };
+
+export const renderResume = renderResumePage;
 
 export default {
   renderHome,
