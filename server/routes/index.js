@@ -13,13 +13,14 @@ const router = Router();
 router.get(
   '/health',
   asyncHandler(async (_req, res) => {
-    sendData(res, {
+    const health = {
       status: 'ok',
       uptime: Math.round(process.uptime()),
       timestamp: new Date().toISOString(),
       environment: config.env,
-      storedMessages: await messageStore.count(),
-    });
+    };
+    if (!config.isServerless) health.storedMessages = await messageStore.count();
+    sendData(res, health);
   }),
 );
 

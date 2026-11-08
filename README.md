@@ -18,7 +18,7 @@ page, and a strict CSP with no third-party scripts.
 | **Backend** | Express 4, layered routes/services/middleware, Zod validation, Helmet CSP |
 | **API** | Versioned REST (`/api/v1`) with a consistent JSON envelope and pagination |
 | **Contact** | Validated + rate-limited + honeypot-protected; disk-backed on servers, mail-relay-backed on serverless |
-| **Quality** | 18 automated tests (`node:test`), structured logging, graceful shutdown |
+| **Quality** | Automated integration tests (`node:test`), structured logging, graceful shutdown |
 | **A11y** | Semantic landmarks, labelled controls, visible focus rings, `prefers-reduced-motion` support |
 
 ---
@@ -163,6 +163,8 @@ endpoint returns `503` rather than claiming that an enquiry was durably stored.
 - Helmet CSP with no inline scripts; `frame-ancestors 'none'`, `object-src 'none'`.
 - Zod validation on every input with field-level error messages.
 - Two-tier rate limiting (global + strict on the contact endpoint).
+- Rate limits use the process-local default store; multi-instance/serverless deployments should
+  also enforce shared limits at the platform edge or configure a shared rate-limit store.
 - Honeypot field plus server-side absorption of bot submissions.
 - 32 KB body limit, strict CORS allowlist, `x-powered-by` disabled.
 - Stack traces are never exposed in production.
