@@ -156,6 +156,27 @@ const renderProjectCards = (items = queryProjects({ limit: 50 }).items) => {
     .join('');
 };
 
+const renderArchitecture = (nodes = []) => {
+  if (!nodes.length) return '';
+  const width = 720;
+  const nodeWidth = Math.min(290, width - 48);
+  const nodeHeight = 48;
+  const gap = 22;
+  const height = nodes.length * (nodeHeight + gap) - gap + 32;
+  const shapes = nodes
+    .map((node, index) => {
+      const x = (width - nodeWidth) / 2;
+      const y = 16 + index * (nodeHeight + gap);
+      const connector =
+        index < nodes.length - 1
+          ? `<path class="architecture-edge" d="M${width / 2} ${y + nodeHeight}v${gap}" />`
+          : '';
+      return `${connector}<rect class="architecture-node" x="${x}" y="${y}" width="${nodeWidth}" height="${nodeHeight}" rx="8"/><text class="architecture-label" x="${width / 2}" y="${y + 30}" text-anchor="middle">${escapeHtml(node)}</text>`;
+    })
+    .join('');
+  return `<svg class="architecture-diagram" viewBox="0 0 ${width} ${height}" role="img" aria-labelledby="architecture-title"><title id="architecture-title">Project architecture, from interface to services</title>${shapes}</svg>`;
+};
+
 /* ------------------------------------------------------------ json-ld */
 
 const buildPersonSchema = () => ({
