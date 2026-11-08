@@ -12,7 +12,6 @@ const __dirname = path.dirname(fileURLToPath(import.meta.url));
 const templatePath = path.join(__dirname, 'home.template.html');
 const projectsTemplatePath = path.join(__dirname, 'projects.template.html');
 const projectTemplatePath = path.join(__dirname, 'project.template.html');
-const resumeTemplatePath = path.join(__dirname, 'resume.template.html');
 const siteTemplatePath = path.join(__dirname, 'site.template.html');
 const writingDirectory = path.resolve(__dirname, '../../content/writing');
 const siteOrigin = config.siteUrl.replace(/\/$/, '');
@@ -29,13 +28,6 @@ const toClass = (value = '') =>
     .toLowerCase()
     .replace(/[^a-z0-9]+/g, '-')
     .replace(/^-|-$/g, '');
-
-const escapeJson = (value = '') =>
-  JSON.stringify(String(value))
-    .replace(/</g, '\\u003C')
-    .replace(/\n/g, '\\n')
-    .replace(/\r/g, '\\r')
-    .replace(/\t/g, '\\t');
 
 const absoluteUrl = (pathname = '/') => {
   const origin = config.siteUrl.replace(/\/$/, '');
@@ -90,19 +82,6 @@ const renderSkillGroups = () =>
             </ul>
           </header>
         </article>`,
-    )
-    .join('');
-
-const renderResumeSkills = () =>
-  skills
-    .map(
-      (group) => `
-        <div class="resume-skill-group">
-          <h3>${escapeHtml(group.title)}</h3>
-          <ul class="resume-skill-list">
-            ${group.items.map((item) => `<li>${escapeHtml(item)}</li>`).join('')}
-          </ul>
-        </div>`,
     )
     .join('');
 
@@ -405,7 +384,13 @@ const parseWritingFile = (source, slug) => {
   );
   const date = metadata.date;
   const parsedDate = date && /^\d{4}-\d{2}-\d{2}$/.test(date) ? new Date(`${date}T00:00:00Z`) : null;
-  if (!metadata.title || !parsedDate || parsedDate.toISOString().slice(0, 10) !== date || metadata.draft === 'true') {
+  if (
+    !metadata.title ||
+    !parsedDate ||
+    Number.isNaN(parsedDate.getTime()) ||
+    parsedDate.toISOString().slice(0, 10) !== date ||
+    metadata.draft === 'true'
+  ) {
     return null;
   }
   return { slug, title: metadata.title, date, description: metadata.description || metadata.title, body: match[2] };
