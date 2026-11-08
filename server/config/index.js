@@ -21,7 +21,7 @@ export const config = {
   isProd: env === 'production',
   isTest: env === 'test',
   isServerless:
-    ! (env === 'test') &&
+    env !== 'test' &&
     (process.env.SERVERLESS === 'true' ||
       Boolean(process.env.VERCEL || process.env.AWS_LAMBDA_FUNCTION_NAME || process.env.FUNCTIONS_WORKER_RUNTIME)),
   port: toInt(process.env.PORT, 3000),

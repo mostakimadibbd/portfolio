@@ -166,9 +166,7 @@ const renderTagChips = (limit = 14) =>
     )
     .join('');
 
-const renderProjectCards = () => {
-  const { items } = queryProjects({ limit: 50 });
-
+const renderProjectCards = (items = queryProjects({ limit: 50 }).items) => {
   return items
     .map(
       (project) => `
@@ -366,7 +364,6 @@ export const renderHome = async () => {
     PROFILE_EMAIL: profile.email,
     PROFILE_LOCATION_URL: profile.locationUrl,
     PROFILE_RESUME_URL: profile.resumeUrl,
-    SITE_URL: escapeHtml(config.siteUrl.replace(/\/$/, '')),
     PROFILE_EXPERIENCE_YEARS: profile.yearsExperience,
     PROFILE_PROJECTS: profile.projectsShipped,
     PROFILE_MODELS: profile.modelsInProduction,
@@ -404,8 +401,8 @@ export const renderProjectsPage = async () => {
     PROFILE_RESUME_URL: profile.resumeUrl,
     SITE_URL: escapeHtml(config.siteUrl.replace(/\/$/, '')),
     TAG_CHIPS: renderTagChips(Infinity),
-    PROJECT_CARDS: renderProjectCards(),
-    PROJECT_COUNT: String(queryProjects({ limit: 50 }).meta.total),
+    PROJECT_CARDS: renderProjectCards(projects),
+    PROJECT_COUNT: String(projects.length),
     CURRENT_YEAR: String(new Date().getFullYear()),
   };
 

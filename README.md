@@ -17,7 +17,7 @@ page, and a strict CSP with no third-party scripts.
 | **Frontend** | Vanilla ES modules, CSS custom properties, light/dark themes, no framework |
 | **Backend** | Express 4, layered routes/services/middleware, Zod validation, Helmet CSP |
 | **API** | Versioned REST (`/api/v1`) with a consistent JSON envelope and pagination |
-| **Contact** | Validated + rate-limited + honeypot-protected; disk-backed on servers, mail-relay-backed on serverless |
+| **Contact** | Validated + rate-limited + honeypot-protected; local file storage on a persistent single-server volume, mail-relay-backed on serverless |
 | **Quality** | Automated integration tests (`node:test`), structured logging, graceful shutdown |
 | **A11y** | Semantic landmarks, labelled controls, visible focus rings, `prefers-reduced-motion` support |
 
@@ -141,7 +141,8 @@ Every value has a working default; `.env` is optional. See `.env.example`.
 | `MESSAGES_FILE` | `./var/messages.json` | Where enquiries are stored |
 | `LOG_LEVEL` | `info` | `debug` \| `info` \| `warn` \| `error` |
 
-Without `MAIL_ENDPOINT` a traditional server persists messages locally and logs them. Serverless
+Without `MAIL_ENDPOINT` a traditional server persists messages locally and logs them. That file
+store needs a persistent writable volume and is intended for a single server process. Serverless
 deployments must configure a mail relay: function filesystems are ephemeral, so the contact
 endpoint returns `503` rather than claiming that an enquiry was durably stored.
 
@@ -199,5 +200,7 @@ npm ci --omit=dev && npm start
 
 Put it behind a reverse proxy (nginx, Caddy) or a managed platform (Render, Railway, Fly.io).
 For Vercel/serverless, the `api/index.js` entry point is used; set `SITE_URL` and configure
-`MAIL_ENDPOINT` (and its credentials) so enquiries go to durable storage outside the function.
+`MAIL_ENDPOINT` (and its credentials) so enquiries are delivered outside the function. For a
+multi-instance server, replace local message storage and the in-memory rate-limit store with
+shared services before scaling out.
 The standalone server binds to `0.0.0.0` and trusts one proxy hop in production.
